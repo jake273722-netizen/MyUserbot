@@ -1,0 +1,832 @@
+import os
+import time
+import random
+import logging
+import asyncio
+import threading
+import gradio as gr
+
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
+
+# Logging Setup
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+
+BOT_TOKEN = "8642880112:AAEeT4Em53yv6qLCgWhkVaufjl5U1xvZQUI".strip()
+
+# ✨ Main Admin ID 
+MAIN_ADMIN_ID = 8986922249
+MAIN_ADMIN_USERNAME = "hyungV1"  # 👈 မင်းရဲ့ Telegram Username
+
+# Bot ကို သုံးခွင့်ရှိသူတွေရဲ့ Admin IDs စာရင်း (Main Admin အပါအဝင်)
+ADMIN_IDS = {MAIN_ADMIN_ID}
+
+# Global State Variables
+targets = set()             
+is_running = True           
+
+mt_running = False          
+mt_targets = {}             
+mt_task = None              
+mt_delay = 2.0              
+
+# 🧠 User Interaction Steps မှတ်ရန် (Flow Tracking)
+# user_id: step_number
+user_flow_state = {}
+
+# ⚠️ MT / Auto-reply အတွက် သီးသန့်
+Replies = [
+    "ဖာသည်မသားလေးရယ် သေချာကိုက်လေ",
+    "မင်းအမေသေတဲ့အကြောင်းတွေ ပြောနေတာလား",
+    "ဖာသည်မသား မင်းမေအသုဘ လူမစီဘူးလား",
+    "မင်းမေဖာသည်မဆိုတာ ငါကော ဘုရားကောသိတယ်",
+    "ထိထိမိမိကိုက်လေ မအေလိုးခွေး",
+    "နရင်းဖျက်ရိုက်လိုက်လို့ မူးပြီးကိုမေကိုလိုးသွားမယ်",
+    "မင်းဘာလို့လန့်နေတာတုန်းဟ ခုမှအစပဲရှိသေးတာ",
+    "သေချာကိုက်ထားငါကတော့ နာနာရိုက်မှာ မင်းလိုခွေးကို",
+    "ဘယ်သူနိုင်လည်း စောင့်ကြည့်စရာမလိုဘူး ပွဲစကတည်းက ငါက အနိုင်ဘက်က",
+    "ငါလိုးမခွေး မင်းမေစပဖြစ်တာလား",
+    "သေချာကိုက်ပါဆို အဆွယ်ကျိုးပြနေတာလား",
+    "မင်းမေစောက်ဖုတ် ငါလိုးမိသေးလား",
+    "ကိုက်ထားလေရိုက်ဖားလေး",
+    "မင်းဘဝကတုံးအောက်ကဖားပဲ",
+    "မင်းက နူနေတာလား အနူမသား",
+    "ပျော့လိုက်တဲ့ခွေး အပျင်းကိုမပြေဘူး",
+    "ဖာသည်မသားလေး မင်းမေခွေးလိုးသွားတာလား",
+    "ငါလိုးမစောက်ခြောက် မင်းဘာလို့ နွဲ့ပြနေတာလဲ",
+    "တပည့်ကျော် တဘော်ကျဲ့ ကိုက်ထားမယ်",
+    "အရမ်းကောင်းနေလည်း ဒုတိယပဲရမယ် ဖာသည်မသား",
+    "ငါနိုင်နေတာလား အမြဲအနိုင်ပိုင်းနေတော့ ပျင်းနေပြီ",
+    "ဖာသည်မသားလေးရယ်သေချာကိုက်လေ ဘာလို့ ငိုင်နေတာလဲ",
+    "ငါက god လေ မင်းကတော့ dog ငါ့ချီးပဲစားနေ",
+    "မင်းမာန်ဆွယ်လေးထုတ်ပြစမ်း မအေလိုး",
+    "မင်းစောက်ရုပ်ကြီးဘာလို့ဆိုးနေတာလဲ စောက်ရုပ်ဆိုးကောင်",
+    "မင်းမေစပထဲဝင်ပြေးမယ်မကြံနဲ့ သေချာကိုက်",
+    "ငါက သခင်လေ မင်းကတော့ သမင်ပေါ့ ငါအမဲလိုက်တာပဲခံနေရမှာ",
+    "ပြေးနိုင်သလောက်ပြေး ဘယ်လိုပြေးပြေး မင်းလွှတ်လမ်းမရှိဘူး",
+    "မင်းအမေ အေကိုက်သေတာဆို",
+    "ဖာသည်မကြီးရဲ့သား ဘာကျစ်တာလဲ",
+    "လီးတောင့်နေပြီ မင်းအမေဖာသည်မစောက်ပါးစပ်လိုနေနတာ",
+    "ဖာသည်မသား မင်းမေစောက်ခွက်ကိုသေးနဲ့ပန်းမယ်",
+    "ငိုမနေနဲ့ မသနားဘူးငါက",
+    "ကိုမေကိုလိုးလေး ကြိတ်ကြွေနေတာလား ငါ့ flow တွေကို",
+    "ဟိတ်ကောင် မအေလိုးခွေး",
+    "မင်းမိဘငါလိုးတယ် ဘာဖြစ်လဲ",
+    "အူကြောင်ကြားနဲ့ မအူမလည်နွားလုပ်မနေနဲ့",
+    "တောသားလိုလို ဝဲစားလိုလိုနဲ့ အနူလက်နဲ့ခွေး",
+    "မင်းကိုဆဲနေတာဖာသည်မသားရ ဘာလို့ကြောင်ကြည့်နေတာလဲ",
+    "လန့်နေတာလား ငါ့ကို",
+    "ဖာသည်မသားပေါက်စ",
+    "မအေလိုးလေး သေချာလေးကိုက်ကြည့်ပါလား",
+    "ငါပြန်ကိုက်မယ် မင်းအမေနို့သီးခေါင်းကို",
+    "ကိုက်လေ ဖာသည်မသား",
+    "မင်းမေစောက်ဖုတ်ကို ကုန်းယက်နေတာလားမင်းက",
+    "ခွေးကြီး ခွေးလို အူပြစမ်း ခွေးမသား",
+    "ဘာလို့ ခွေးဖြစ်ပြီး အူရမှာရှက်နေတာလဲ",
+    "မင်းက သေချာကိုက် ငါက ဂဲနဲ့ထုမယ်",
+    "အများကတော့ငါ့ကိုအရိုက်ဘုရင်လို့ပေးထားတာပဲမင်းငါ့ကိုနိုင်ချင်ရင်သေချာကိုက်မှရမယ်",
+    "အဆွယ်ကျိုးကြီးနဲ့ မာန်ဖီပြမနေနဲ့",
+    "ဖာသည်မသားခွေး မင်းကခွေးမသားလား",
+    "မအေလိုးလေး သေချာကိုက်လိုက်ပါတော့လား",
+    "မင်းဘာလို့ လက်မြှောက်ဒူးထောက်လုပ်နေတာလဲ",
+    "မင်းအညံ့ခံလည်း ငါ့တပည့်အဖြစ်မခန့်ဘူး",
+    "တောသားလိုလိုပွဲစားလိုလိုငါရှေ့မှာဂယောက်ဂယက်နဲ့လာလုပ်မနေနဲ",
+    "ယောကျာ်းကြီးဖြစ်ပြီအခြောက်စိတ်ကိုစွန့်ပယ်ကြိုးစားချင်စိတ်မွေး",
+    "ဖာသည်မသားကလေးကလားနဲ့လီးဖြစ်တာလားစောက်တောသားအထာမကျပဲလာတုပနေတယ်",
+    "မင်းအခုခွေးလိုနွားလိုအဆဲခံနေရတာတောင်အ‌စွဲတောင်ချင်နေသေးတယ",
+    "Text နဲ့စာရိုက်နေတာကိုထိလည်းမထိဘူးတဲ့ ဦးနှောက်ကြွက်ကိုက်ထားသလား ဂေါက်သီး ထိချင်ရင်လာခဲ့",
+    "မင်းအမေဖင်ညိုညိုကြီးကို ငြင်ငြင်လေးနဲ့ဘုပေးလိုက်ပြီ",
+    "ဟိတ်ကောင်မင်းမေစောက်ဖုတ်ကိုထွန်းရွှေဝါလူးပီးသုတ်လိုးလိုးပေးမယ်ပူစပ်စပ်ဖြစ်နေအောင်",
+    "ကန်ချက်တွေက အရမ်းပြင်းနေလို့ မခုခံနိုင်ဘူးလား ဖာသည်မသား",
+    "မျက်လုံးကိုမှိတ်ထားငါ့ဆီကထွက်လာတဲ့auraတွေကိုမင်းခံနိုင်ရည်မရှိမှာဆိုးလို့",
+    "ဖာသည်မရဲ့သားဝူးတူးတူးမလုပ်နဲ့ဖျက်ကန်လိုက်မယ်",
+    "တော်တီနောင်တော်တီနောင်မင်းအမေဖင်ကြီးကပြောင်",
+    "မင်းအမေအိကျိကြီး ငါစို့တယ်ဘာဖြစ်လဲ",  
+    "မင်းအဖေခွေးကြီးကိုသွားပြောလေအက်တာ",
+    "ငေးမနေနဲမင်းအမေဖာသည်မဆုံးပြီ",
+    "ဟျောင့်ဖာသည်မသားကိုက်လိုက်တာလား",
+    "မင်းစောက်ဆင့်နဲ့ပါးစပ်တောင်မဟနဲ့လက်နောက်ပြစ်ထား",
+    "ဟိတ်ကောင်မအေလိုး၁၂၃ဆိုတာနဲ့ကိုယ်မေကိုယ်ပြန်လိုးဖို့အဆင်သင့်ပြင်ထားတော့",
+    "ခွေးဝဲစားမသားကိုက်အားပျော့လှချည်လားကွ",
+    "မင်းအမေကသာငါ့အပေါ်တက်ခွတာပါတပည့်",
+    "မင်းရဲ့စောနကအစွယ်တွေဘယ်ဖျောက်လိုက်တာလဲဘောမ",
+    "မအေလိုးပေါ်ပြူလာဖြစ်ချင်တာလားဒေါ်မူယာကမင်းအမေဆို",
+    "မအေလိုးဝက်ကိုက်မှာသာကိုက်စကားပလ္လင်ခံမနေနဲ့နောက်ဆုံးမင်းဒီဘူတာပဲဆိုက်မှာ",
+    "မအေလိုးခွေးမင်းအမေခွေးလိုးလိုက်လို့မင်းပါစိတ်မနှံ့တဲ့ခွေးဖြစ်တာဆို",
+    "မင်းအမေဖင်ထဲငါ့လီးစိုက်ဝင်သွားလို့ရပ်ကွက်တကာအော်ကြီးဟစ်ကျယ်နဲ့လျှောက်အော်နေတာလားမအေလိုးရ",
+    "မင်းစောက်ဦးနှောက်တစ်ခြမ်းပုတ်နေတာလား",
+    "ငါကမင်းရန်သူမဟုတ်ဘူးမင်းမိတ်ဆွေမင်းအမေကိုလိုးမယ့်မိတ်ဆွေ",
+    "1234ဆိုတာနဲ့ မင်းအမေစောက်ပတ်ကိုဖြဲထား ငါကအားနဲ့ပြေးလိုးမယ်",
+    "ခွေးမသားသတ္တိရှိရင်မင်းအမေဖာသည်မကိုအော်ဆဲပြလိုက်ပါလား",
+    "မင်းစကားအရမ်းများတယ်ငါ့လီးငုံထားပါလား",
+    "ဟာလန့်တာမင်းအမေမင်းထလိုးတော့ငါလည်းလန့်တာပေါ့",
+    "Telegram မှာ ငါဆရာပဲ မင်းအမေကိုလိုးတယ်ကွာ ဘယ်သူဘာပြောမလည်း",
+    "မင်းမေစဖုတ်ကိုဆင်စီးပြီးမီးထုတ်ရမ်းဝင်တာတောင်မိူင်းမဆွံဘူးဆိုမအေလိုး",
+    "အေးဒါဆိုလိပ်စာပြောမင်းအမေ ကို deliနဲ့ လှမ်းလိုးးခိုင်းပလိုက်မယ်",
+    "ငါလိုးမခွေးအခြောက်လိုကိုက်မနေနဲ့ယောက်ကျားလိုဖိုက်",
+    "မင်းအမေဖာသယ်မကြီးကို ဖာတန်းကပြန်ခေါ် နောက်ပီးရင် ဘိုးဘွားရိပ်သာပို့စမ်း",
+    "ငါပြောတဲ့စာသားတွေကမင်းအတွက်အထီးကျန်ဆန်မူနဲ့ပြတ်သားနေတာမင်းဘာလိုတုံပြန်ရခက်နေတာလဲ",
+    "ဖာသည်မသားယောင်ခြောယ်ကောင် မင်းဘွားအေငါလိုး",
+    "စောက်ရူးရာ ကိုက်မယ်ဆိုသေချာကိုက် မထိတထိနဲ့လာမညှောင်နဲ့",
+    "အဲ့တာမင်းမေဖာသည်မနာရေးဖိတ်စာလား",
+    "အတွေးကမင်းမေလိုးတဲ့အ‌တွေးပဲရှိတာလား",
+    "မင်းမေဖာသည်မကိုအများနဲ့ရောလိုးမယ်",
+    "ဖာသည်မရဲ့သားဝူးတူးတူးမလုပ်နဲ့ဖျက်ကန်လိုက်မယ်",
+    "ဟေ့ရောင်ဖာသည်မသား ခေါ်ရင်သေချာ‌ထူးကွာ မထူးရင်မင်းအမေစဖုတ်ထဲငါ့လီးစိမ်ထားရလိမ့်မယ်",
+    "ဘာတွေလျှောက်ရေးနေတာ စောက်ရူးအကွပ်နက်",
+    "မင်းမာန်စွယ်လေး ထုတ်ပြစမ်း ဖာသည်မသား",
+    "ဖာသည်မသားလီးလိုနားတာလား",
+    "ဖာသည်မသားဆိုဆက်တိုက်ကိုက်",
+    "ငါလိုးမ ဖာသည်မ‌အကြီးစားရဲ့သားမင်းမိဘငါလိုးတော့ဘာကျစ်လို့လဲဟ",
+    "အဲ့တာမင်းမေဖာသည်မနာရေးဖိတ်စာလား",
+    "အတွေးကမင်းမေလိုးတဲ့အ‌တွေးပဲရှိတာလား",
+    "မင်းမေဖာသည်မကိုအများနဲ့ရောလိုးမယ်",
+    "ဖာသည်မရဲ့သားဝူးတူးတူးမလုပ်နဲ့ဖျက်ကန်လိုက်မယ်",
+    "မင်းအမေအေကိုက်လို့သေပြီဆို👉😂",
+    "မင်းမေဘယ်သူလိုးလိုး ငါမလိုးဘူး",
+    "ဒီဂရုချက်ရဲ့ဘုရင်ကငါဘဲ မင်းက ငါ့လက်အောက်မာဘဲနေ🤧",
+    "ကြာလေပျော့လေပါလား ဖယောင်းလေးရာ",
+    "ဟျောင့်ခွေးသား မင်းကရိုးရိုးခွေးမဟုတ်ဘူး ဝဲစားနေတဲ့ခွေးဝဲစား",
+    "ဖာသည်မသားလို့ပြောရင်လဲ မင်းအမေငါ့မယားနစ်နာဦးမယ်",
+    "ကိုက်လေဟျောင့်ခွေး",
+    "ကိုမေကိုလိုးသွားရမယ်နော်မအေလိုးလေး",
+    "အေးမသိဘူးမင်းအမေဖာသည်မပဲ",
+    "လန့်လိုက်တာ မင်းမေစပ့ငါလိုး",
+    "ဘာလားပဲစောက်တောသား",
+    "ဆင်ခြေတွေ လာပေးနေတာ မသနားဘူးငါက မနာလိုမှုတွေများပြီး မင်းငါစလို့ ကြိတ်ခိုးလောင်နေတာဆို ခွေးမျိုးတုံးချင်နေတာ ခွေးမသားက👉😂",
+    "ငိုပြမနေနဲ့မင်းအမေဖာသယ်မကြီးသေမှငိုပလိုက်",
+    "ဟျောင့်ဝက် မင်းအနူတောထဲကနေလမ်းပျောက်နေတုန်းဘဲမလား အဲ့တော့မကြိုးစားနဲ့အကုန်သဲထဲရေသုန်ဘဲ😂👌",
+    "မအေလိုးလေးငါဆဲတိုင်းနာကျည်းပြီးပြန်ဆဲနေရတာနာကျည်းနေပြီလားတောသား",
+    "စောက်ကျပ်ကိုမပြည့်ဘူး ကြက်မသား🤞😂",
+    "ဟောင့် တယ်လီဂွမ်နံပတ်ဝမ်းဖင်ခေါင်းစတားဖာသည်မသားလေး",
+    "ကဲပါထားလိုက်တော့ လိုးတော့မယ်မင်းအမေကို",
+    "မအေလိုးကြက်ပေါက်စ ပိကျိပိကျိ‌နဲ့မင်းဘာတွေအော်နေတာလဲ",
+    "မအေလိုးခွေး ဂုတ်မွှေသန်လားမင်း",
+    "ဟောင့်ဘောမ ရပ်လိုက် လက်ပိုက် ရပြီ ဆက်ကိုက်",
+    "ဟုမ်းမိတ်ဆိုပြီး မင်းအမေကိုအမုန်းကြိတ်ပေးရမှလား",
+    "ဟိတ်ကောင်မင်းအမေစောက်ဖုတ်ပူရှိန်းပူရှိန်းနဲ့လိုးကောင်းလိုက်တာကွာ",
+    "ဖာသည်မသားမင်းအမေစောက်ပက်တွေလာပြောနေတာလား👉😂",
+    "ငါလိုးဖာသည်မသားမင်းအမေဝဲစားစောက်ဖုတ်ကို မန္တလေးတောင်ကနဂါးကြီးနှစ်ကောင်ပတ်ပီးနဂါးပတ်နဲ့လိုးပေးမယ်😁",
+    "ဟိတ်ကောင်မင်းအမေစောက်ဖုတ်ကိုထွန်းရွှေဝါလူးပီးသုတ်လိုးလိုးပေးမယ်ပူစပ်စပ်ဖြစ်နေအောင်",
+    "မင်းအမေဖာသည်မဆို👉😂",
+    "ငါလိုးမ အာပေးတူ ဆဲတာပျော့လိုက်တာ ထိထိမိမိဆဲလေ🤞😏",
+    "မင်းကယောင်္ကျားမှမဟုတ်ပဲဆဲတာတောင်အခြောက်လို‌ဆဲနေတာ",
+    "မအေလိုးမင်းမေစောက်ပတ်သဲပတ်ပီးလိုးပေးမယ်ဂျောက်ဂျောက်နဲ့ မြည်နေအောင်😎",
+    "မင်းမေဖာသည်မကိုအများနဲ့ရောလိုးမယ်",
+    "တော်တီနောင်တော်တီနောင်မင်းအမေဖင်ကြီးကပြောင်",
+    "မင်းအမေအိကျိကြီး ငါစို့တယ်ဘာဖြစ်လဲ",
+    "မင်းအဖေခွေးကြီးကိုသွားပြောလေအက်တာ",
+    "ငေးမနေနဲမင်းအမေဖာသည်မဆုံးပြီ",
+    "ဟျောင့်ဖာသည်မသားကိုက်လိုက်တာလား",
+    "မင်းစောက်ဆင့်နဲ့ပါးစပ်တောင်မဟနဲ့လက်နောက်ပြစ်ထား",
+    "ဟိတ်ကောင်မအေလိုး၁၂၃ဆိုတာနဲ့ကိုယ်မေကိုယ်ပြန်လိုးဖို့အဆင်သင့်ပြင်ထားတော့",
+    "ခွေးဝဲစားမသားကိုက်အားပျော့လှချည်လားကွ",
+    "မင်းအမေကသာငါ့အပေါ်တက်ခွတာပါတပည့်",
+    "မင်းရဲ့စောနကအစွယ်တွေဘယ်ဖျောက်လိုက်တာလဲဘောမ",
+    "မအေလိုးပေါ်ပြူလာဖြစ်ချင်တာလားဒေါ်မူယာကမင်းအမေဆို",
+    "မအေလိုးဝက်ကိုက်မှာသာကိုက်စကားပလ္လင်ခံမနေနဲ့နောက်ဆုံးမင်းဒီဘူတာပဲဆိုက်မှာ",
+    "မအေလိုးခွေးမင်းအမေခွေးလိုးလိုက်လို့မင်းပါစိတ်မနှံ့တဲ့ခွေးဖြစ်တာဆို",
+    "မင်းအမေဖင်ထဲငါ့လီးစိုက်ဝင်သွားလို့ရပ်ကွက်တကာအော်ကြီးဟစ်ကျယ်နဲ့လျှောက်အော်နေတာလားမအေလိုးရ",
+    "မင်းစောက်ဦးနှောက်တစ်ခြမ်းပုတ်နေတာလား",
+    "ငါကမင်းရန်သူမဟုတ်ဘူးမင်းမိတ်ဆွေမင်းအမေကိုလိုးမယ့်မိတ်ဆွေ",
+    "1234ဆိုတာနဲ့ မင်းအမေစောက်ပတ်ကိုဖြဲထား ငါကအားနဲ့ပြေးလိုးမယ်",
+    "ခွေးမသားသတ္တိရှိရင်မင်းအမေဖာသည်မကိုအော်ဆဲပြလိုက်ပါလား",
+    "မင်းစကားအရမ်းများတယ်ငါ့လီးငုံထားပါလား",
+    "ဟာလန့်တာမင်းအမေမင်းထလိုးတော့ငါလည်းလန့်တာပေါ့",
+    "Telegram မှာ ငါဆရာပဲ မင်းအမေကိုလိုးတယ်ကွာ ဘယ်သူဘာပြောမလည်း",
+    "မင်းမေစဖုတ်ကိုဆင်စီးပြီးမီးထုတ်ရမ်းဝင်တာတောင်မိူင်းမဆွံဘူးဆိုမအေလိုး",
+    "အေးဒါဆိုလိပ်စာပြောမင်းအမေကို deli နဲ့ လှမ်းလိုးခိုင်းပလိုက်မယ်",
+    "ငါလိုးမခွေးအခြောက်လိုကိုက်မနေနဲ့ယောက်ကျားလိုဖိုက်",
+    "မင်းအမေဖာသယ်မကြီးကို ဖာတန်းကပြန်ခေါ် နောက်ပီးရင် ဘိုးဘွားရိပ်သာပို့စမ်း",
+    "ငါပြောတဲ့စာသားတွေကမင်းအတွက်အထီးကျန်ဆန်မူနဲ့ပြတ်သားနေတာမင်းဘာလိုတုံပြန်ရခက်နေတာလဲ",
+    "ဖာသည်မသားယောင်ခြောယ်ကောင် မင်းဘွားအေငါလိုး",
+    "စောက်ရူးရာ ကိုက်မယ်ဆိုသေချာကိုက် မထိတထိနဲ့လာမညှောင်နဲ့",
+    "အဲ့တာမင်းမေဖာသည်မနာရေးဖိတ်စာလား",
+    "အတွေးကမင်းမေလိုးတဲ့အ‌တွေးပဲရှိတာလား",
+    "မင်းမေဖာသည်မကိုအများနဲ့ရောလိုးမယ်",
+    "ဖာသည်မရဲ့သားဝူးတူးတူးမလုပ်နဲ့ဖျက်ကန်လိုက်မယ်",
+    "ဟေ့ရောင်ဖာသည်မသား ခေါ်ရင်သေချာထူးကွာ မထူးရင်မင်းအမေစဖုတ်ထဲငါ့လီးစိမ်ထားရလိမ့်မယ်",
+    "ဘာတွေလျှောက်ရေးနေတာ စောက်ရူးအကွပ်နက်",
+    "မင်းမာန်စွယ်လေး ထုတ်ပြစမ်း ဖာသည်မသား",
+    "ဖာသည်မသားလီးလိုနားတာလား",
+    "ဖာသည်မသားဆိုဆက်တိုက်ကိုက်",
+    "ငါလိုးမ ဖာသည်မအကြီးစားရဲ့သား မင်းမိဘငါလိုးတော့ဘာကျစ်လို့လဲဟ",
+    "ငါလိုးမဖာသယ်မသား မင်းဘယ်နားစောက်သုံးကျလို့လည်း",
+    "ဒီလိုလုပ်မင်းအမေကိုငါကလိုးမယ်မင်းကvdရိုက်ထား",
+    "ဟျောင့်၀က်မသားလက်နှေးပြီလား",
+    "ဟျောင့်ကိုမေကိုလိုးတဲ့ဝက်ပြိတ္တာမျိုး",
+    "မင်းအမေစောက်ပက်ကိုလေပေါ်ကနေတက်စိုက်ပြီးလိုးပစ်မယ်",
+    "အထာမမိုက်တဲ့ငါလိုးမဝက်မိုက်🤞",
+    "မင်းအမေစောက်စိကိုသံပုရာသီးနဲ့ညှစ်ပြီးကော်ပျံ့လိပ်ထဲညှပ်စားပစ်မယ်",
+    "ငါလိုးမဖာသည်မသားမင်းအမေကိုကင်းမြှီးကောက်ထောင်လိုးမယ်",
+    "မင်းအမေစပတ်ကို ဆားသိပ်ပီ နှပ်ထားအုန်းမှ ရမယ်😁",
+    "မင်းအဖွားစက်ပက်ကျင်စက်နဲ့ထိုးခံရလို့ စမာန်ထနေတာလား",
+    "ဟျောင့်မင်းစောက်ပေါက်ကိုဘာနဲ့ပိတ်ပေးရမလဲမင်းအမေစောက်ပတ်နဲ့လား",
+    "ဟျောင့်မင်းစောက်ခွက်ကဒစ်ရာဘယ်သူ့ဒစ်ရာလဲ😳",
+    "မင်းအမေစောက်ပက်အယ်အယ်ကြီးကိုပိန္ဒဲသီးကြီးနဲ့ထုခြေပစ်မယ်ကွာ😳👈",
+    "ယျောင့်စောက်၀က်ကြီးကိုက်ထားမယ်လေ",
+    "မအေလိုးခွေးပင်ပန်းသွားပြီလားဖာသည်မသား",
+    "ဟျောင့်ဖာသည်မသားကိုက်",
+    "မင်းအမေသေတာလားအခုက",
+    "ဖာသည်မသားအံဂတ်ကျွတ်အောင်ကိုက်",
+    "ရိုးသားပြီးလိုးကား ကြည့်ပြီးမင်းအမေစောက်ပက်တည့်တည့်ငါ့လီးကြီးစိုက်ထည့်လိုက်ရမလား",
+    "မင်းအမေစောက်ပက်ပလာတာကြီးကိုနံပြားရိုက်သလိုရိုက်ပစ်မယ်",
+    "မင်းအမေစောက်ပက်ကိုဖြတ်ပြီးဘူးသီးနဲ့ရောပြီးချက်စားပစ်မယ်",
+    "ဟျောင့်မင်းအမေကိုဝက်တက်လိုးတာလား",
+    "မင်းအမေဖာသည်မစဖုတ်ကိုလှံနဲ့ဖြတ်စိုက်ပြီးအောင်ပွဲခံပစ်မယ်",
+    "ငါလိုးမအဆီပိတ်ကိုက်ထား",
+    "ဖာသည်မသားလေးမင်းအမေစောက်ဖုတ်ကိုလီးမှာဂေါ်လီကွင်းပြီးလိုးပစ်မယ်",
+    "ဟျောင့်ခွေးမသားမင်းနှမစပ့ပြဲမကိုမုဒိန်းကျင့်ပစ်မယ်",
+    "သွားကောင်းရင်ကိုက်လိုက်ခါးကောင်းရင်ကော့လိုက်ဖက်တီး😳😳",
+    "မင်းအမေစောက်ကြက်မကိုပါးနားပိတ်ရိုက်ပြီးအသုဘချပစ်မယ်",
+    "ဖာသည်မသားလေးအရှုံးပေးတော့မှာလား",
+    "မင်းအမေဝက်ကျားမကျောကုန်းကြီးကိုကျဥ်စက်နဲ့တို့ပြီးဝက်ခြံထဲမှာဇီးတင်ပစ်မယ်",
+    "ဟျောင့်ကိုက်မင်းကိုက်နေတာငါ့ဖိနပ်ကြီး😳",
+    "တူတူရေဝါးဆိုပီးမင်းအမေစောက်ဖုတ်ကိုကြည့်မယ်",
+    "မအေလိုးကိုက်ထားဖာသည်မသားကြောင်ကြည့်မနေနဲ့",
+    "ဘမောတဲ့ဘောမ ဝဠ်ကြွေးရွှိသမျှအောင့်အီးသာခံလိုက်",
+    "သာဓုနှစ်ကြိမ်ခေါ်လိုက်ဘောမ မင်းကိုနောက်တစ်ကြိမ်ပေးမခေါ်ဘူးမင်းဒီဘဝဒီမျှဝဠ်ကြွေးရှိသမျှကုန်အောင်သာဆပ်",
+    "မအေလိုးစောက်သခေါရပ်ကြည့်မနေနဲ့မင်းအမေငါတက်လိုးလိုက်မယ်",
+    "နှမလိုးဘောမကိုက်ဆိုကုန်းသာကိုက်နောက်အံကိုကြိတ်ထားရဲရဲသာကိုက်",
+    "ဟိတ်ကောင်စောက်ဝက်စောက်ခွက်ကိုခြောက်ချက်တိတိရိုက်ခံရမယ်",
+    "ဖာသည်မသားကိုက်ပါ",
+    "ကိုမေကိုလိုးလေး",
+    "စောက်ဖာသည်မသားသွားတွေကျိုးချင်နေတာလား",
+    "ပါးပိတ်ရိုက်လိုက်မယ်ငါလိုးမသား",
+    "တပည့်စောက်လုပ်ပေးမယ်ကိုက်",
+    "မအေလိုးဘာသဘောလဲမင်းကခွေးတစ်ကောင်လိုအဆက်မပြတ်အူနေတော့မှာလား",
+    "ဝူးဝူးဝါးဝါးငါလိုးမသား",
+    "လှိမ့်ဆဲခံရလို့တင်းနေတာလား",
+    "ရုပ်ပြိုင်ချောမလား",
+    "ဖာသည်မသားရုပ်ဆိုးအကျည်းတန်လိုက်တာ🤮",
+    "ဟျောင့်ဝက် မင်းအနူတောထဲကနေလမ်းပျောက်နေတုန်းဘဲမလား အဲ့တော့မကြိုးစားနဲ့အကုန်သဲထဲရေသုန်ဘဲ😂👌",
+    "ဖာသည်မသားဆိုပီပီဟန်ချီချီကိုက်ပလိုက်ကွာမာန်ဖီပီးတော့",
+    "ဟျောင့်ခွေးငေးငိုင်မနေဘဲမင်းကဆက်ကိုက်",
+    "ငါကလူမိုက်မင်းအမေကိုအသေဖိုက်မှာ",
+    "မင်းနှမစောက်ပတ်ကိုခပ်နာနာလေးဖြဲထိုးတက်လိုးပလိုက်မယ်",
+    "ဟျောင့်ခွေးဘီလူး",
+    "မင်းစောက်ရုပ်ဆိုးတာငါသိပါတယ်စောက်ရုပ်ဆိုးကောင်ရ",
+    "စောက်ဖာသည်မသားမင်းဇရှိရင်မင်းအမေစောက်ပေါမကိုဖာသည်မကြီးလို့အော်ဆဲပြစမ်းကွာ",
+    "ခွေးမသား",
+    "ဖာသည်မသားမင်းအဖေပါပေးတယ်ထိုးမာလား",
+    "စောက်ခွက်တက်နင်းလိုက်မယ်",
+    "ငါလိုးမစောက်သခေါယောက်ျားဖြစ်ပီးစောက်ပဲမများနဲ့",
+    "မအေလိုးစောက်ထာစောက်ကန့်မရှိတဲ့ဂေးကြီးလားမင်းက",
+    "မင်းအမေဖာသည်မကိုလူပုံအလယ်မှာလိင်ဆက်ဆံပစ်မယ်ကွာ😂🤞",
+    "ငါလိုးမခွေး",
+    "လီးဖစ်တာလားမင်းကလီးရုပ်နဲ့ဆောင့်ကန်လိုက်မယ်",
+    "မအေလိုးကသခင်အသစ်ရအစာလေးဝတော့ခွေးတစ်ကောင်လိုပြန်ကိုက်တတ်ဖို့အစွယ်သွေးနေပီ",
+    "မင်းပဲအဆဲခံနေရတယ်",
+    "မင်းလည်းဘယ်ဘဝကအာကုသိုလ်လဲမသိဘူးဒီဘဝမာလာအဆဲခံနေရတယ်",
+    "ဖာသယ်မသားတပည့်အစုတ်ပလုပ်ကောင်",
+    "မင်းငါ့ကိုတားနိုင်မယ်လို့ထက်နေတာလား လှိုင်းတလူံးက သမုဒ္ဒရာကိုတားဖို့ ကြိုးစားသလိုပဲ",
+    "ဘာလဲဖာသည်မသားမင်းကိုက်နေတာငါ့ခြေထောက်ကြီး",
+    "ဘာတွေငေးငိုင်နေတာလဲကိုက်ရမှာမင်းအလုပ်",
+    "ဖာသည်မသားမင်းအမေဖာသည်မကိုငါလိုးမိတာတောင်းပန်ပါတယ်",
+    "ကိုက်တတ်ရင်သေချာကိုက် မထိတထိတော့မလုပ်ပါနဲ့ကွာ😹😹✌🏻",
+    "လူကသာစောက်သုံးမကျတာပြောလိုက်ရင်စောက်ကြီးစောက်ကြယ်နဲ့",
+    "ကိုက်မယ်ဆိုလဲကိုက်ကွာဝေ့ဝိုက်မနေနဲ့",
+    "ငါကအထာဆျာပဲမင်းကိုလှိမ့်ရိုက်ပေးလိုက်တာမင်းအစွယ်တွေအကုန်ကျွတ်ထွက်ကုန်ပီ",
+    "ဟျောင့်ခွေး😂",
+    "ငါကအသေကြမ်းတာမင်းအမေစောက်ဖုတ်ကိုသွေးစိမ်းပန်းထွက်တဲ့အထိလိုးခွဲနိုင်တယ်",
+    "ဖာသည်မသားကရုပ်ဆိုးသလောက်အတော်အကိုက်ကြမ်းတဲ့ကောင်",
+    "မခင်ဘူးကွာကပ်ဖားယက်ဖားဆိုစောက်ဖာသည်မသား",
+    "ငါဒီမှာဟဖာသည်မသားလာကိုက်",
+    "ဘာငေးနေတာမကိုက်ရဲဘူးလားကွီးကို",
+    "မင်းကိုက် တာကိုကြည့်ချင်တယ် ဟိတ်ကောင် ငါလိုးမသား ငါ့ကိုကိုက်ပြကွာ",
+    "ကမ္ဘာမှာဆွဲငင်အားရှိတယ်မင်းအမေမှာလည်းရှိတယ်လီးတစ်ချောင်းလောက်တွေ့တာနဲ့နီးတဲ့အပေါက်ထဲဇွတ်ဆွဲတာ",
+    "မင်းနဲ့ပြောရတာက အောက်ခြေတောသားနဲ့ပြောနေရသလိုပဲ အိပ့အိပ့နဲ့",
+    "ငါလိုးမသားပြေးကန်လိုက်လို့သေချင်းဆိုးနဲ့သေနေမယ်",
+    "မင်းမေကိုမထင်ရင်မထင်သလိုလိုးတာလား",
+    "မင်းငါ့ဆီကဘာလိုချင်နေတာလည်းငါလိုးမတောခွေးသေချာကိုက်လေ",
+    "မင်းရဲ့စောက်သုံးမကျတဲ့ဘဝကိုနာကျည်းနေတာလား",
+    "ဖာသည်မသား ဘယ်ကပေါက်ဖွားလာတာလည်း",
+    "ငါလိုးမဖာသည်မသားမင်းမေစောက်ပက်ကိုသံပဒက်နဲ့ပိတ်တိုက်ပေးလိုက်ရမလား",
+    "မင်းအမေစောက်ပက်တည့်တည့်သေးပန်းပစ်မယ်",
+    "ဖာသည်မသားမင်းထူးလေ",
+    "ဟျောင့်ကိုက်လေနှမလိုးစောက်တောသားလာထား",
+    "စောက်ရူးနားကန်း မင်းအမေကို ငါ့လိုးဟေး",
+    "မင်းမေစောက်ပတ်တွေးတောတာလားကွာငါလိုးမဖာသည်မသား",
+    "မင်းအဖေစောက်တောသားကိုမေးကြည့်ဇွဲသုတဘာကောင်လဲဆိုတာ",
+    "ငါလိုးမစောက်ရုပ်ဆိုးလူကြည့်တော့လီးရုပ်နဲ့ပြေးကန်လိုက်မယ်",
+    "ဝက်သားကျွေးပေးလိုက်မယ်မအေလိုးကုလား",
+    "ဖာသည်မသား ကပ်ဖားကောင်မင်းလိုခွေးကိုအသာအယာရိုက်မယ်",
+    "ကင်းမြီးကောက်ထောင်ပြီးလိုးနေတာဘရို့အမေနဲ့",
+    "မင်းအမေစောက်ပက်ကိုအတူတူလိုးကြရအောင်ဘရို",
+    "ဟေဖာသည်မသားမင်းအမေသေတာငါကလီးလုပ်ရမှာလား",
+    "ကြောက်ပြီလား မင်းဇကဒါပဲလား",
+    "ငါ့အိမ်ကခွေးပေါက်နဲ့ပြိုင်ကိုက်ရင်တောင် မင်းကရှုံးမှာ",
+    "ဇွဲသုတကြမ်းရင် မင်းအမေလည်းမနိုင်ဘူး ကုန်''ပြောရရင် ကုတင်ပါကျိုးတယ်",
+    "နှမလိုးလေး ငါမင်းအမကိုမလိုးဘူး မဖားနဲ့",
+    "ကြောက်လန့်နေတာလားစောက်ကုလား",
+]
+
+shuffled_replies = []
+
+def get_random_reply():
+    global shuffled_replies
+    if not Replies:
+        return "No replies available."
+    
+    if not shuffled_replies:
+        shuffled_replies = list(Replies)
+        random.shuffle(shuffled_replies)
+        
+    return shuffled_replies.pop()
+
+
+def is_admin(update: Update) -> bool:
+    user = update.effective_user
+    return user is not None and user.id in ADMIN_IDS
+
+
+async def admin_only(update: Update) -> bool:
+    if not is_admin(update):
+        message = update.effective_message
+        if message:
+            await message.reply_text("Sir Zwe Thuta ka min ah fay lrr")
+        return False
+    return True
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    message = update.effective_message
+
+    if not is_admin(update):
+        if user:
+            user_flow_state[user.id] = 1
+        await message.reply_text(" https://t.me/+odchGTDKNgVjYWE1 Gpထဲ @urPaPiibot လို့ Mt  ပြီး ကိုကို လို့ခေါ်ရင် ပါမစ်ရနည်းပြောပြမယ်")
+        return
+
+    await update.effective_message.reply_text(
+        "🤖 Bot is online!\n\n"
+        "--- Admin Commands ---\n"
+        "/adm (reply) - Grant bot access to a user (Main Admin only)\n"
+        "/unadm (reply/ID) - Remove bot access from a user (Main Admin only)\n"
+        "/admlist - Show all admins list with HTML links\n\n"
+        "--- Auto Reply Commands ---\n"
+        "/target USER_ID - Add user for auto-reply\n"
+        "/remove USER_ID - Remove user from auto-reply & MT list\n"
+        "/list - Show all targets (Auto-reply & MT lists)\n"
+        "/stop - Pause auto-reply\n\n"
+        "--- Continuous Mention (MT) Commands ---\n"
+        "/mt USER_ID - Start infinite MT spamming (6-msg burst, default 2s speed)\n"
+        "/stopmt - Stop continuous MT spamming\n"
+        "/speed SECONDS - Set MT speed (e.g. /speed 0 or /speed 1)\n\n"
+        "--- Utility Commands ---\n"
+        "/id - Show Group ID & Replied User ID\n"
+        "/status - Show status"
+    )
+
+
+async def adm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    message = update.effective_message
+
+    if user is None or user.id != MAIN_ADMIN_ID:
+        await message.reply_text("⛔ Only the Main Admin can use the /adm command.")
+        return
+
+    if not message.reply_to_message or not message.reply_to_message.from_user:
+        await message.reply_text("Please reply to a user's message to grant them access using /adm.")
+        return
+
+    target_user = message.reply_to_message.from_user
+    if target_user.is_bot:
+        await message.reply_text("Cannot grant access to a bot.")
+        return
+
+    ADMIN_IDS.add(target_user.id)
+    if target_user.id in user_flow_state:
+        del user_flow_state[target_user.id]
+
+    await message.reply_text(f"✅ Successfully granted bot access to {target_user.full_name} (ID: {target_user.id})")
+
+
+async def unadm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    message = update.effective_message
+
+    if user is None or user.id != MAIN_ADMIN_ID:
+        await message.reply_text("⛔ Only the Main Admin can use the /unadm command.")
+        return
+
+    target_user_id = None
+
+    if message.reply_to_message and message.reply_to_message.from_user:
+        target_user_id = message.reply_to_message.from_user.id
+    elif context.args:
+        try:
+            target_user_id = int(context.args[0])
+        except ValueError:
+            await message.reply_text("Usage: /unadm USER_ID (or reply to user)")
+            return
+
+    if not target_user_id:
+        await message.reply_text("Please reply to a user's message or provide a USER_ID to /unadm.")
+        return
+
+    if target_user_id == MAIN_ADMIN_ID:
+        await message.reply_text("⛔ Cannot remove Main Admin!")
+        return
+
+    if target_user_id in ADMIN_IDS:
+        ADMIN_IDS.remove(target_user_id)
+        await message.reply_text(f"❌ Successfully removed bot access from ID: {target_user_id}")
+    else:
+        await message.reply_text("This user is not an admin.")
+
+
+# ✨ /admlist - Admin တွေရဲ့ ID နဲ့ Name Link များကို ပြသပေးခြင်း
+async def admlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await admin_only(update):
+        return
+
+    admin_lines = []
+    for admin_id in sorted(ADMIN_IDS):
+        try:
+            # Telegram API ကနေ User ရဲ့ နာမည်အမှန်ကို ဆွဲထုတ်ခြင်း
+            chat_member = await context.bot.get_chat(admin_id)
+            name = chat_member.first_name if chat_member.first_name else str(admin_id)
+        except Exception:
+            name = f"Admin {admin_id}"
+
+        # HTML Mention Link ပြုလုပ်ခြင်း
+        link = f'<a href="tg://user?id={admin_id}">{name}</a>'
+        admin_lines.append(f"• ID: `{admin_id}` — {link}")
+
+    result = "🛡️ **Bot Admin List**:\n\n" + "\n".join(admin_lines)
+    await update.effective_message.reply_text(result, parse_mode="HTML")
+
+
+async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await admin_only(update):
+        return
+
+    message = update.effective_message
+
+    if message.reply_to_message:
+        user = message.reply_to_message.from_user
+        if user is None or user.is_bot:
+            await message.reply_text("Cannot select this account.")
+            return
+
+        targets.add(user.id)
+        await message.reply_text(f"✅ Added target ID: {user.id}")
+        return
+
+    if not context.args:
+        await message.reply_text("Usage: /target USER_ID")
+        return
+
+    try:
+        user_id = int(context.args[0])
+    except ValueError:
+        await message.reply_text("USER_ID must be numeric.")
+        return
+
+    targets.add(user_id)
+    await message.reply_text(f"✅ Added target ID: {user_id}")
+
+
+async def list_targets(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await admin_only(update):
+        return
+
+    result = "📋 **Bot Targets List**:\n\n"
+    result += "🔹 **Auto-Reply Targets:**\n"
+    if targets:
+        result += "\n".join(f"• ID: {uid}" for uid in sorted(targets)) + "\n"
+    else:
+        result += "No auto-reply targets selected.\n"
+
+    result += "\n"
+    result += "🔸 **Continuous MT Targets:**\n"
+    if mt_targets:
+        result += "\n".join(f"• {uname} (ID: {uid})" for uid, uname in mt_targets.items()) + "\n"
+    else:
+        result += "No active MT targets.\n"
+
+    await update.effective_message.reply_text(result, parse_mode="Markdown")
+
+
+async def remove_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global mt_running, mt_task
+
+    if not await admin_only(update):
+        return
+
+    message = update.effective_message
+    user_id = None
+    target_name = None
+
+    if message.reply_to_message and message.reply_to_message.from_user:
+        replied_user = message.reply_to_message.from_user
+        user_id = replied_user.id
+        target_name = replied_user.first_name
+    elif context.args:
+        try:
+            user_id = int(context.args[0])
+        except ValueError:
+            await message.reply_text("Usage: /remove USER_ID")
+            return
+
+    if not user_id:
+        await message.reply_text("Please reply to a user or provide USER_ID.")
+        return
+
+    if user_id in mt_targets and not target_name:
+        target_name = mt_targets[user_id]
+
+    removed_from_targets = False
+    removed_from_mt = False
+
+    if user_id in targets:
+        targets.remove(user_id)
+        removed_from_targets = True
+
+    if user_id in mt_targets:
+        del mt_targets[user_id]
+        removed_from_mt = True
+        
+        if not mt_targets:
+            mt_running = False
+            if mt_task:
+                mt_task.cancel()
+                mt_task = None
+
+    if removed_from_targets or removed_from_mt:
+        display_name = target_name if target_name else str(user_id)
+        user_mention_link = f'<a href="tg://user?id={user_id}">{display_name}</a>'
+        await message.reply_text(f"ngo ma ny lk ftmt: {user_mention_link}", parse_mode="HTML")
+    else:
+        await message.reply_text("D kmkl ma shi thyy buu ha")
+
+
+async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global is_running
+    if not await admin_only(update):
+        return
+
+    is_running = False
+    await update.effective_message.reply_text("Auto-reply actions paused.")
+
+
+async def continuous_mt_loop(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
+    global mt_running, mt_targets, mt_delay
+
+    def get_combined_mentions_and_text():
+        mentions = " ".join([f'<a href="tg://user?id={uid}">{uname}</a>' for uid, uname in mt_targets.items()])
+        random_text = get_random_reply()
+        return f"{mentions} {random_text}"
+
+    burst_tasks = []
+    for _ in range(6):
+        if not mt_running or not mt_targets:
+            break
+        full_msg = get_combined_mentions_and_text()
+        burst_tasks.append(
+            context.bot.send_message(chat_id=chat_id, text=full_msg, parse_mode="HTML")
+        )
+    
+    if burst_tasks and mt_running:
+        try:
+            await asyncio.gather(*burst_tasks, return_exceptions=True)
+        except Exception as e:
+            logging.error(f"Burst MT Error: {e}")
+
+    while mt_running and mt_targets:
+        if not mt_running or not mt_targets:
+            break
+
+        full_msg = get_combined_mentions_and_text()
+
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=full_msg,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            logging.error(f"MT Loop Error: {e}")
+            await asyncio.sleep(1)
+
+        if mt_delay > 0:
+            await asyncio.sleep(mt_delay)
+
+
+async def mt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global mt_running, mt_targets, mt_task, mt_delay
+
+    if not await admin_only(update):
+        return
+
+    message = update.effective_message
+    target_user_id = None
+    target_username = None
+
+    if message.reply_to_message and message.reply_to_message.from_user:
+        user = message.reply_to_message.from_user
+        target_user_id = user.id
+        target_username = user.first_name
+    elif context.args:
+        try:
+            target_user_id = int(context.args[0])
+            target_username = str(target_user_id)
+        except ValueError:
+            await message.reply_text("Usage: /mt USER_ID (or reply to user)")
+            return
+
+    if not target_user_id:
+        await message.reply_text("Please reply to a user or provide USER_ID for /mt.")
+        return
+
+    mt_targets[target_user_id] = target_username
+    
+    if not mt_running:
+        mt_running = True
+        mt_task = asyncio.create_task(
+            continuous_mt_loop(update.effective_chat.id, context)
+        )
+
+
+async def stopmt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global mt_running, mt_targets, mt_task
+
+    if not await admin_only(update):
+        return
+
+    mt_running = False
+    mt_targets.clear()
+
+    if mt_task:
+        mt_task.cancel()
+        mt_task = None
+
+    await update.effective_message.reply_text("kmkl lyy twy ngo ny p htin loh stop pyy lyk tr 😹")
+
+
+async def speed_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global mt_delay
+
+    if not await admin_only(update):
+        return
+
+    if not context.args:
+        await update.effective_message.reply_text(
+            f"Current MT Speed Delay: {mt_delay} seconds.\nUsage: /speed 1 (to set speed)"
+        )
+        return
+
+    try:
+        new_speed = float(context.args[0])
+        mt_delay = max(0.0, new_speed)
+        await update.effective_message.reply_text(f"⚡ Speed updated to {mt_delay}s")
+    except ValueError:
+        await update.effective_message.reply_text("Please provide a valid number (e.g. /speed 1).")
+
+
+async def auto_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global is_running
+
+    if not update.effective_user or not update.effective_message:
+        return
+
+    user = update.effective_user
+    message = update.effective_message
+    text = message.text or message.caption or ""
+
+    if user.id in ADMIN_IDS:
+        if is_running and user.id in targets:
+            reply_text = get_random_reply()
+            await message.reply_text(reply_text)
+        return
+
+    user_id = user.id
+    current_step = user_flow_state.get(user_id, 0)
+
+    if current_step == 5:
+        return
+
+    if "ကိုko" in text.lower() or "@urPaPibotကိုကို" in text or f"@{context.bot.username}" in text:
+        user_flow_state[user_id] = 2
+        await message.reply_text("ဗျာ အာဘွားပေးမို့လား ပေးလိုက် အာဘွား ဆိုပြီး", reply_to_message_id=message.message_id)
+        return
+
+    if current_step == 2:
+        if message.reply_to_message and message.reply_to_message.from_user.id == context.bot.id:
+            if "အာဘွား" in text:
+                user_flow_state[user_id] = 3
+                await message.reply_text("ဟီး Bot ဆိုပေမယ့်နည်းနည်းတောင်ရှက်လာပြီ 😭", reply_to_message_id=message.message_id)
+                return
+
+    if current_step == 3:
+        user_flow_state[user_id] = 4
+        await message.reply_text("မင်း မိန်းကလေးတော့ဟုတ်ပါတယ်နော် ငါလိုးမ gay ကြီးလားမသိဘူး", reply_to_message_id=message.message_id)
+        return
+
+    if current_step == 4:
+        user_flow_state[user_id] = 5
+        await message.reply_text(f"လာတောင်း ကိုကို့စီကို @{MAIN_ADMIN_USERNAME}", reply_to_message_id=message.message_id)
+        return
+
+    if is_running and user_id in targets:
+        reply_text = get_random_reply()
+        await message.reply_text(reply_text)
+
+
+async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await admin_only(update):
+        return
+
+    message = update.effective_message
+    chat = update.effective_chat
+
+    result = f"Group/Chat ID: {chat.id}"
+
+    if message.reply_to_message and message.reply_to_message.from_user:
+        result += f" FtmtID: {message.reply_to_message.from_user.id}"
+    else:
+        result += "\n(No message replied to check user ID)"
+
+    await message.reply_text(result)
+
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await admin_only(update):
+        return
+
+    ar_state = "Enabled" if is_running else "Paused"
+    mt_state = f"Running ({len(mt_targets)} targets)" if mt_running else "Stopped"
+
+    await update.effective_message.reply_text(
+        f"🤖 Bot Status:\n"
+        f"• Auto-Reply: {ar_state} ({len(targets)} targets)\n"
+        f"• Continuous MT: {mt_state} (Combined)\n"
+        f"• MT Speed Delay: {mt_delay}s"
+    )
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    logging.error("Bot error: %s", context.error)
+
+
+# --- HUGGING FACE 24/7 WEB SERVER (GRADIO) ---
+def run_web_server():
+    def dummy_response(name):
+        return "Bot is running 24/7!"
+    
+    demo = gr.Interface(fn=dummy_response, inputs="text", outputs="text")
+    # Hugging Face က port 7860 ကို သုံးပါတယ်
+    demo.launch(server_name="0.0.0.0", server_port=7860, share=False, prevent_thread_lock=True)
+
+
+def main():
+    if not BOT_TOKEN:
+        raise RuntimeError("BOT_TOKEN is missing. Set your bot token in the environment.")
+
+    # Hugging Face မအိပ်သွားအောင် Web Server ကို background thread နဲ့ အပြိုင် run ပေးခြင်း
+    web_thread = threading.Thread(target=run_web_server, daemon=True)
+    web_thread.start()
+
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    # Commands Registration
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("adm", adm_command))
+    app.add_handler(CommandHandler("unadm", unadm_command))
+    app.add_handler(CommandHandler("admlist", admlist_command)) # ✨ Admin List Command အသစ်
+    app.add_handler(CommandHandler("target", target_command))
+    app.add_handler(CommandHandler("list", list_targets))
+    app.add_handler(CommandHandler("remove", remove_target))
+    app.add_handler(CommandHandler("stop", stop_command))
+    
+    # Continuous MT Commands
+    app.add_handler(CommandHandler("mt", mt_command))
+    app.add_handler(CommandHandler("stopmt", stopmt_command))
+    app.add_handler(CommandHandler("speed", speed_command))
+
+    # General Commands
+    app.add_handler(CommandHandler("id", id_command))
+    app.add_handler(CommandHandler("status", status_command))
+
+    # Message Handler (Text & Attachments)
+    app.add_handler(MessageHandler(filters.TEXT | filters.ATTACHMENT, auto_reply_handler))
+
+    app.add_error_handler(error_handler)
+
+    print("Bot is starting with 24/7 Web Server support...")
+    app.run_polling(drop_pending_updates=True)
+
+
+if __name__ == "__main__":
+    main()
