@@ -37,10 +37,9 @@ mt_task = None
 mt_delay = 2.0              
 
 # 🧠 User Interaction Steps မှတ်ရန် (Flow Tracking)
-# user_id: step_number
 user_flow_state = {}
 
-# ⚠️ MT / Auto-reply အတွက် သီးသန့် (လုံးဝ မရောပါ)
+# ⚠️ MT / Auto-reply အတွက် သီးသန့်
 Replies = [
     "ဖာသည်မသားလေးရယ် သေချာကိုက်လေ",
     "မင်းအမေသေတဲ့အကြောင်းတွေ ပြောနေတာလား",
@@ -75,7 +74,7 @@ Replies = [
     "လီးတောင့်နေပြီ မင်းအမေဖာသည်မစောက်ပါးစပ်လိုနေနတာ",
     "ဖာသည်မသား မင်းမေစောက်ခွက်ကိုသေးနဲ့ပန်းမယ်",
     "ငိုမနေနဲ့ မသနားဘူးငါက",
-    "ကိုမေကိုလိုးလေး ကြိတ်ကြွေနေတာလား ငါ့ flow တွေကို",
+    "ကိုမေကိုလိုးလေး ကြိတ်ကြွေနေတာလား ငါ့ flow တွေက",
     "ဟိတ်ကောင် မအေလိုးခွေး",
     "မင်းမိဘငါလိုးတယ် ဘာဖြစ်လဲ",
     "အူကြောင်ကြားနဲ့ မအူမလည်နွားလုပ်မနေနဲ့",
@@ -131,7 +130,7 @@ Replies = [
     "အေးဒါဆိုလိပ်စာပြောမင်းအမေ ကို deliနဲ့ လှမ်းလိုးးခိုင်းပလိုက်မယ်",
     "ငါလိုးမခွေးအခြောက်လိုကိုက်မနေနဲ့ယောက်ကျားလိုဖိုက်",
     "မင်းအမေဖာသယ်မကြီးကို ဖာတန်းကပြန်ခေါ် နောက်ပီးရင် ဘိုးဘွားရိပ်သာပို့စမ်း",
-    "ငါပြောတဲ့စာသားတွေကမင်းအတွက်အထီကျန်ဆန်မူနဲ့ပြတ်သားနေတာမင်းဘာလိုတုံပြန်ရခက်နေတာလဲ",
+    "ငါပြောတဲ့စာသားတွေကမင်းအတွက်အထီးကျန်ဆန်မူနဲ့ပြတ်သားနေတာမင်းဘာလိုတုံပြန်ရခက်နေတာလဲ",
     "ဖာသည်မသားယောင်ခြောယ်ကောင် မင်းဘွားအေငါလိုး",
     "စောက်ရူးရာ ကိုက်မယ်ဆိုသေချာကိုက် မထိတထိနဲ့လာမညှောင်နဲ့",
     "အဲ့တာမင်းမေဖာသည်မနာရေးဖိတ်စာလား",
@@ -173,7 +172,7 @@ Replies = [
     "ဟိတ်ကောင်မင်းအမေစောက်ဖုတ်ပူရှိန်းပူရှိန်းနဲ့လိုးကောင်းလိုက်တာကွာ",
     "ဖာသည်မသားမင်းအမေစောက်ပက်တွေလာပြောနေတာလား👉😂",
     "ငါလိုးဖာသည်မသားမင်းမေဝဲစားစောက်ဖုတ်ကို မန္တလေးတောင်ကနဂါးကြီးနှစ်ကောင်ပတ်ပီးနဂါးပတ်နဲ့လိုးပေးမယ်😁",
-    "ဟိတ်ကောင်မင်းမေစောက်ဖုတ်ကိုထွန်းရွှေဝါလူးပီးသုတ်လိုးလိုးပေးမယ်ပူစပ်စပ်ဖြစ်နေအောင်",
+    "ဟိတ်ကောင်မင်းအမေစောက်ဖုတ်ကိုထွန်းရွှေဝါလူးပီးသုတ်လိုးလိုးပေးမယ်ပူစပ်စပ်ဖြစ်နေအောင်",
     "မင်းအမေဖာသည်မဆို👉😂",
     "ငါလိုးမ အာပေးတူ ဆဲတာပျော့လိုက်တာ ထိထိမိမိဆဲလေ🤞😏",
     "မင်းကယောင်္ကျားမှမဟုတ်ပဲဆဲတာတောင်အခြောက်လို‌ဆဲနေတာ",
@@ -216,7 +215,7 @@ Replies = [
     "မင်းမာန်စွယ်လေး ထုတ်ပြစမ်း ဖာသည်မသား",
     "ဖာသည်မသားလီးလိုနားတာလား",
     "ဖာသည်မသားဆိုဆက်တိုက်ကိုက်",
-    "ငါလိုးမ ဖာသည်မအကြီးစားရဲ့သား မင်းမိဘငါလိုးတော့ဘာကျစ်လို့လဲဟ"
+    "ငါလိုးမ ဖာသည်မအကြီးစားရဲ့သား မင်းမိဘငါလိုးတော့ဘာကျစ်လို့လဲဟ",
     "ငါလိုးမဖာသယ်မသား မင်းဘယ်နားစောက်သုံးကျလို့လည်း",
     "ဒီလိုလုပ်မင်းအမေကိုငါကလိုးမယ်မင်းကvdရိုက်ထား",
     "ဟျောင့်၀က်မသားလက်နှေးပြီလား",
@@ -227,7 +226,7 @@ Replies = [
     "ငါလိုးမဖာသည်မသားမင်းအမေကိုကင်းမြှီးကောက်ထောင်လိုးမယ်",
     "မင်းအမေစပတ်ကို ဆားသိပ်ပီ နှပ်ထားအုန်းမှ ရမယ်😁",
     "မင်းအဖွားစက်ပက်ကျင်စက်နဲ့ထိုးခံရလို့ စမာန်ထနေတာလား",
-    "ဟျောင့်မင်းစောက်ပေါက်ကိုဘာနဲ့ပိတ်ပေးရမလဲမင်းအမေစောက်ပတ်နဲ့လား",
+    "ဟျောင့်မင်းစောက်ပေါက်ကိုဘာနဲ့ပိတ်ပေးရမလဲမင်းအမေစောက်ပက်နဲ့လား",
     "ဟျောင့်မင်းစောက်ခွက်ကဒစ်ရာဘယ်သူ့ဒစ်ရာလဲ😳",
     "မင်းအမေစောက်ပက်အယ်အယ်ကြီးကိုပိန္ဒဲသီးကြီးနဲ့ထုခြေပစ်မယ်ကွာ😳👈",
     "ယျောင့်စောက်၀က်ကြီးကိုက်ထားမယ်လေ",
@@ -327,7 +326,6 @@ Replies = [
     "ကြောက်လန့်နေတာလားစောက်ကုလား",
 ]
 
-
 shuffled_replies = []
 
 def get_random_reply():
@@ -341,11 +339,9 @@ def get_random_reply():
         
     return shuffled_replies.pop()
 
-
 def is_admin(update: Update) -> bool:
     user = update.effective_user
     return user is not None and user.id in ADMIN_IDS
-
 
 async def admin_only(update: Update) -> bool:
     if not is_admin(update):
@@ -355,12 +351,10 @@ async def admin_only(update: Update) -> bool:
         return False
     return True
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     message = update.effective_message
 
-    # Admin မဟုတ်တဲ့သူက /start နှိပ်ရင် Flow ကို အစကနေ အသစ်ပြန်စပေးမည် (Step 1 သို့ သတ်မှတ်မည်)
     if not is_admin(update):
         if user:
             user_flow_state[user.id] = 1
@@ -386,7 +380,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/status - Show status"
     )
 
-
 async def adm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     message = update.effective_message
@@ -409,7 +402,6 @@ async def adm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del user_flow_state[target_user.id]
 
     await message.reply_text(f"✅ Successfully granted bot access to {target_user.full_name} (ID: {target_user.id})")
-
 
 async def unadm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -444,7 +436,6 @@ async def unadm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await message.reply_text("This user is not an admin.")
 
-
 async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
         return
@@ -458,6 +449,7 @@ async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         targets.add(user.id)
+        await message.reply_text(f"✅ Added user ID {user.id} to auto-reply targets.")
         return
 
     if not context.args:
@@ -471,7 +463,7 @@ async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     targets.add(user_id)
-
+    await message.reply_text(f"✅ Added user ID {user_id} to auto-reply targets.")
 
 async def list_targets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
@@ -493,8 +485,6 @@ async def list_targets(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.effective_message.reply_text(result, parse_mode="Markdown")
 
-
-# ✨ /remove လုပ်ရင် နာမည်ကို အပြာရောင် Mention Link အဖြစ် ပြသပေးမည်
 async def remove_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global mt_running, mt_task
 
@@ -520,19 +510,16 @@ async def remove_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("Please reply to a user or provide USER_ID.")
         return
 
-    # MT list ထဲတွင် နာမည်ရှိမရှိ ကြည့်မည်
     if user_id in mt_targets and not target_name:
         target_name = mt_targets[user_id]
 
     removed_from_targets = False
     removed_from_mt = False
 
-    # 1. Auto-reply target list ထဲက ဖယ်ထုတ်ခြင်း
     if user_id in targets:
         targets.remove(user_id)
         removed_from_targets = True
 
-    # 2. Continuous MT list ထဲက ဖယ်ထုတ်ခြင်း
     if user_id in mt_targets:
         del mt_targets[user_id]
         removed_from_mt = True
@@ -545,12 +532,10 @@ async def remove_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if removed_from_targets or removed_from_mt:
         display_name = target_name if target_name else str(user_id)
-        # HTML Link အဖြစ် ပြောင်းပေးခြင်း
         user_mention_link = f'<a href="tg://user?id={user_id}">{display_name}</a>'
-        await message.reply_text(f"ngo ma ny lk ftmt: {user_mention_link}", parse_mode="HTML")
+        await message.reply_text(f"ngo ma ny nk ftmt: {user_mention_link}", parse_mode="HTML")
     else:
         await message.reply_text("D kmkl ma shi thyy buu ha")
-
 
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global is_running
@@ -560,7 +545,6 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_running = False
     await update.effective_message.reply_text("Auto-reply actions paused.")
 
-
 async def continuous_mt_loop(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
     global mt_running, mt_targets, mt_delay
 
@@ -569,40 +553,40 @@ async def continuous_mt_loop(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
         random_text = get_random_reply()
         return f"{mentions} {random_text}"
 
-    burst_tasks = []
-    for _ in range(6):
-        if not mt_running or not mt_targets:
-            break
-        full_msg = get_combined_mentions_and_text()
-        burst_tasks.append(
-            context.bot.send_message(chat_id=chat_id, text=full_msg, parse_mode="HTML")
-        )
-    
-    if burst_tasks and mt_running:
-        try:
-            await asyncio.gather(*burst_tasks, return_exceptions=True)
-        except Exception as e:
-            logging.error(f"Burst MT Error: {e}")
-
-    while mt_running and mt_targets:
-        if not mt_running or not mt_targets:
-            break
-
-        full_msg = get_combined_mentions_and_text()
-
-        try:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=full_msg,
-                parse_mode="HTML"
+    try:
+        burst_tasks = []
+        for _ in range(6):
+            if not mt_running or not mt_targets:
+                break
+            full_msg = get_combined_mentions_and_text()
+            burst_tasks.append(
+                context.bot.send_message(chat_id=chat_id, text=full_msg, parse_mode="HTML")
             )
-        except Exception as e:
-            logging.error(f"MT Loop Error: {e}")
-            await asyncio.sleep(1)
+        
+        if burst_tasks and mt_running:
+            await asyncio.gather(*burst_tasks, return_exceptions=True)
 
-        if mt_delay > 0:
-            await asyncio.sleep(mt_delay)
+        while mt_running and mt_targets:
+            if not mt_running or not mt_targets:
+                break
 
+            full_msg = get_combined_mentions_and_text()
+
+            try:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=full_msg,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logging.error(f"MT Loop Error: {e}")
+                await asyncio.sleep(1)
+
+            if mt_delay > 0:
+                await asyncio.sleep(mt_delay)
+    except asyncio.CancelledError:
+        # Task ကို cancel လိုက်တဲ့အခါ error မတက်အောင် ဖမ်းပေးခြင်း
+        pass
 
 async def mt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global mt_running, mt_targets, mt_task, mt_delay
@@ -637,7 +621,7 @@ async def mt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mt_task = asyncio.create_task(
             continuous_mt_loop(update.effective_chat.id, context)
         )
-
+ #   await message.reply_text(f"🚀 MT started for target ID: {target_user_id}")
 
 async def stopmt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global mt_running, mt_targets, mt_task
@@ -653,7 +637,6 @@ async def stopmt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mt_task = None
 
     await update.effective_message.reply_text("kmkl lyy twy ngo ny p htin loh stop pyy lyk tr 😹")
-
 
 async def speed_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global mt_delay
@@ -674,8 +657,6 @@ async def speed_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.effective_message.reply_text("Please provide a valid number (e.g. /speed 1).")
 
-
-# --- INTERACTIVE FLOW & AUTO REPLY HANDLER ---
 async def auto_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global is_running
 
@@ -686,7 +667,6 @@ async def auto_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     message = update.effective_message
     text = message.text or message.caption or ""
 
-    # Admin တွေအတွက် Flow ထဲ မဝင်စေဘဲ ပုံမှန်အတိုင်း ထားမယ်
     if user.id in ADMIN_IDS:
         if is_running and user.id in targets:
             reply_text = get_random_reply()
@@ -696,17 +676,14 @@ async def auto_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = user.id
     current_step = user_flow_state.get(user_id, 0)
 
-    # 5. Step 5 ရောက်နေရင် (Username ပို့ပြီးသွားရင်) အဲ့ဒီ User ဘာရေးရေး စာလုံးဝ ပြန်မထွက်တော့ပါ
     if current_step == 5:
         return
 
-    # 1. Group ထဲတွင် "@BotUsername ကိုကို" လို့ ခေါ်လာခြင်း
     if "ကိုko" in text.lower() or "@urPaPibotကိုကို" in text or f"@{context.bot.username}" in text:
         user_flow_state[user_id] = 2
         await message.reply_text("ဗျာ အာဘွားပေးမို့လား ပေးလိုက် အာဘွား ဆိုပြီး", reply_to_message_id=message.message_id)
         return
 
-    # 2. Step 2 - User က "အာဘွား" လို့ Reply ထောက်ပြီး ပေးလာခြင်း
     if current_step == 2:
         if message.reply_to_message and message.reply_to_message.from_user.id == context.bot.id:
             if "အာဘွား" in text:
@@ -714,23 +691,19 @@ async def auto_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await message.reply_text("ဟီး Bot ဆိုပေမယ့်နည်းနည်းတောင်ရှက်လာပြီ 😭", reply_to_message_id=message.message_id)
                 return
 
-    # 3. Step 3 - "ဟီး နည်းနည်းတောင်ရှက်လာပြီ" ပြီးနောက် ဘာပဲထပ်ရေးရေး -> "မင်း မိန်းကလေးတော့ဟုတ်ပါတယ်နော် gay ကြီးလားမသိဘူး" လို့ပြောမည်
     if current_step == 3:
         user_flow_state[user_id] = 4
         await message.reply_text("မင်း မိန်းကလေးတော့ဟုတ်ပါတယ်နော် ငါလိုးမ gay ကြီးလားမသိဘူး", reply_to_message_id=message.message_id)
         return
 
-    # 4. Step 4 - အဲ့ဒီနောက်မှာ ဘာပဲထပ်ရေးရေး -> ကိုကို့စီသွားဖို့ Username ချပေးမည်၊ ပြီးရင် Step 5 သို့ တင်မည်
     if current_step == 4:
         user_flow_state[user_id] = 5
         await message.reply_text(f"လာတောင်း ကိုကို့စီကို @{MAIN_ADMIN_USERNAME}", reply_to_message_id=message.message_id)
         return
 
-    # ပုံမှန် Auto-reply targets တွေအတွက် (MT / Target list သီးသန့်)
     if is_running and user_id in targets:
         reply_text = get_random_reply()
         await message.reply_text(reply_text)
-
 
 async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
@@ -748,7 +721,6 @@ async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await message.reply_text(result)
 
-
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
         return
@@ -763,16 +735,27 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• MT Speed Delay: {mt_delay}s"
     )
 
-
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logging.error("Bot error: %s", context.error)
 
+# ✨ Shutdown Hook - Bot ရပ်သွားတဲ့အခါ background task တွေကို သေချာ cancel လုပ်ပေးဖို့
+async def post_shutdown(application: Application):
+    global mt_task, mt_running
+    mt_running = False
+    if mt_task:
+        mt_task.cancel()
+        try:
+            await mt_task
+        except asyncio.CancelledError:
+            pass
+    print("Bot has successfully shut down.")
 
 def main():
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN is missing. Set your bot token in the environment.")
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    # Application builder မှာ post_shutdown ထည့်ပေးခြင်း
+    app = Application.builder().token(BOT_TOKEN).post_shutdown(post_shutdown).build()
 
     # Commands Registration
     app.add_handler(CommandHandler("start", start))
@@ -792,14 +775,13 @@ def main():
     app.add_handler(CommandHandler("id", id_command))
     app.add_handler(CommandHandler("status", status_command))
 
-    # Message Handler (Text & Attachments)
+    # Message Handler
     app.add_handler(MessageHandler(filters.TEXT | filters.ATTACHMENT, auto_reply_handler))
 
     app.add_error_handler(error_handler)
 
     print("Bot is starting...")
     app.run_polling(drop_pending_updates=True)
-
 
 if __name__ == "__main__":
     main()
