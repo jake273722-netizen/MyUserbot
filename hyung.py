@@ -27,13 +27,18 @@ MAIN_ADMIN_USERNAME = "hyungV1"  # 👈 မင်းရဲ့ Telegram Username
 # Bot ကို သုံးခွင့်ရှိသူတွေရဲ့ Admin IDs စာရင်း
 ADMIN_IDS = {MAIN_ADMIN_ID}
 
-# Global State Variables
-targets = set()             
+# Global State Variables (Group တစ်ခုချင်းစီအလိုက် ခွဲသိမ်းရန် ပြင်ဆင်ထားသည်)
+# targets = { chat_id: set(user_ids) }
+targets = {}             
 is_running = True           
 
-mt_running = False          
+# del_targets = { chat_id: set(user_ids) } (Auto-delete လုပ်မည့် Target စာရင်း)
+del_targets = {}
+
+# mt_targets = { chat_id: { user_id: username } }
 mt_targets = {}             
-mt_task = None              
+# mt_tasks = { chat_id: Task }
+mt_tasks = {}              
 mt_delay = 2.0              
 
 # 🧠 User Interaction Steps မှတ်ရန် (Flow Tracking)
@@ -367,14 +372,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/adm (reply) - Grant bot access to a user (Main Admin only)\n"
         "/unadm (reply/ID) - Remove bot access from a user (Main Admin only)\n\n"
         "--- Auto Reply Commands ---\n"
-        "/target USER_ID - Add user for auto-reply\n"
-        "/remove USER_ID - Remove user from auto-reply & MT list\n"
-        "/list - Show all targets (Auto-reply & MT lists)\n"
+        "/target USER_ID - Add user for auto-reply in THIS group\n"
+        "/remove USER_ID - Remove user from auto-reply & MT list in THIS group\n"
+        "/list - Show all targets in THIS group\n"
         "/stop - Pause auto-reply\n\n"
+        "--- Auto Delete Commands ---\n"
+        "/del (reply/ID) - Add user to auto-delete list in THIS group\n"
+        "/undel (reply/ID) - Remove user from auto-delete list in THIS group\n\n"
         "--- Continuous Mention (MT) Commands ---\n"
-        "/mt USER_ID - Start infinite MT spamming (6-msg burst, default 2s speed)\n"
-        "/stopmt - Stop continuous MT spamming\n"
-        "/speed SECONDS - Set MT speed (e.g. /speed 0 or /speed 1)\n\n"
+        "/mt USER_ID - Start infinite MT spamming in THIS group\n"
+        "/stopmt - Stop continuous MT spamming in THIS group\n"
+        "/speed SECONDS - Set MT speed\n\n"
         "--- Utility Commands ---\n"
         "/id - Show Group ID & Replied User ID\n"
         "/status - Show status"
@@ -385,7 +393,7 @@ async def adm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
 
     if user is None or user.id != MAIN_ADMIN_ID:
-        await message.reply_text("⛔ Only the Main Admin can use the /adm command.")
+        await message.reply_text("min ka Ztt ma hoke buu kmkl")
         return
 
     if not message.reply_to_message or not message.reply_to_message.from_user:
@@ -408,7 +416,7 @@ async def unadm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
 
     if user is None or user.id != MAIN_ADMIN_ID:
-        await message.reply_text("⛔ Only the Main Admin can use the /unadm command.")
+        await message.reply_text("min ka ztt ma hoke buu kmkl yay")
         return
 
     target_user_id = None
@@ -440,7 +448,11 @@ async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
         return
 
+    chat_id = update.effective_chat.id
     message = update.effective_message
+
+    if chat_id not in targets:
+        targets[chat_id] = set()
 
     if message.reply_to_message:
         user = message.reply_to_message.from_user
@@ -448,8 +460,8 @@ async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text("Cannot select this account.")
             return
 
-        targets.add(user.id)
-        await message.reply_text(f"✅ Added user ID {user.id} to auto-reply targets.")
+        targets[chat_id].add(user.id)
+ #       await message.reply_text(f"✅ Added user ID {user.id} to auto-reply targets for THIS group.")
         return
 
     if not context.args:
@@ -462,35 +474,102 @@ async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("USER_ID must be numeric.")
         return
 
-    targets.add(user_id)
-    await message.reply_text(f"✅ Added user ID {user_id} to auto-reply targets.")
+    targets[chat_id].add(user_id)
+   # await message.reply_text(f"✅ Added user ID {user_id} to auto-reply targets for THIS group.")
+
+# ✨ Auto-Delete Command (/del)
+async def del_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await admin_only(update):
+        return
+
+    chat_id = update.effective_chat.id
+    message = update.effective_message
+    user_id = None
+
+    if message.reply_to_message and message.reply_to_message.from_user:
+        user_id = message.reply_to_message.from_user.id
+    elif context.args:
+        try:
+            user_id = int(context.args[0])
+        except ValueError:
+            await message.reply_text("Usage: /del USER_ID (or reply to user)")
+            return
+
+    if not user_id:
+        await message.reply_text("Please reply to a user or provide USER_ID.")
+        return
+
+    if chat_id not in del_targets:
+        del_targets[chat_id] = set()
+
+    del_targets[chat_id].add(user_id)
+    await message.reply_text(f"🗑️")
+
+# ✨ Remove Auto-Delete Command (/undel)
+async def undel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await admin_only(update):
+        return
+
+    chat_id = update.effective_chat.id
+    message = update.effective_message
+    user_id = None
+
+    if message.reply_to_message and message.reply_to_message.from_user:
+        user_id = message.reply_to_message.from_user.id
+    elif context.args:
+        try:
+            user_id = int(context.args[0])
+        except ValueError:
+            await message.reply_text("Usage: /undel USER_ID (or reply to user)")
+            return
+
+    if not user_id:
+        await message.reply_text("Please reply to a user or provide USER_ID.")
+        return
+
+    if chat_id in del_targets and user_id in del_targets[chat_id]:
+        del_targets[chat_id].remove(user_id)
+        await message.reply_text(f"✅")
+    else:
+        await message.reply_text("This user is not in the Auto-Delete list.")
 
 async def list_targets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
         return
 
-    result = "📋 **Bot Targets List**:\n\n"
+    chat_id = update.effective_chat.id
+    result = "📋 **This Group Target List**:\n\n"
+    
     result += "🔹 **Auto-Reply Targets:**\n"
-    if targets:
-        result += "\n".join(f"• ID: {uid}" for uid in sorted(targets)) + "\n"
+    group_targets = targets.get(chat_id, set())
+    if group_targets:
+        result += "\n".join(f"• ID: {uid}" for uid in sorted(group_targets)) + "\n"
     else:
-        result += "No auto-reply targets selected.\n"
+        result += "No auto-reply targets selected in this group.\n"
+
+    result += "\n"
+    result += "🗑️ **Auto-Delete Targets:**\n"
+    group_del_targets = del_targets.get(chat_id, set())
+    if group_del_targets:
+        result += "\n".join(f"• ID: {uid}" for uid in sorted(group_del_targets)) + "\n"
+    else:
+        result += "No auto-delete targets in this group.\n"
 
     result += "\n"
     result += "🔸 **Continuous MT Targets:**\n"
-    if mt_targets:
-        result += "\n".join(f"• {uname} (ID: {uid})" for uid, uname in mt_targets.items()) + "\n"
+    group_mt_targets = mt_targets.get(chat_id, {})
+    if group_mt_targets:
+        result += "\n".join(f"• {uname} (ID: {uid})" for uid, uname in group_mt_targets.items()) + "\n"
     else:
-        result += "No active MT targets.\n"
+        result += "No active MT targets in this group.\n"
 
     await update.effective_message.reply_text(result, parse_mode="Markdown")
 
 async def remove_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global mt_running, mt_task
-
     if not await admin_only(update):
         return
 
+    chat_id = update.effective_chat.id
     message = update.effective_message
     user_id = None
     target_name = None
@@ -510,25 +589,28 @@ async def remove_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("Please reply to a user or provide USER_ID.")
         return
 
-    if user_id in mt_targets and not target_name:
-        target_name = mt_targets[user_id]
+    group_mt = mt_targets.get(chat_id, {})
+    if user_id in group_mt and not target_name:
+        target_name = group_mt[user_id]
 
     removed_from_targets = False
     removed_from_mt = False
 
-    if user_id in targets:
-        targets.remove(user_id)
+    if chat_id in targets and user_id in targets[chat_id]:
+        targets[chat_id].remove(user_id)
         removed_from_targets = True
 
-    if user_id in mt_targets:
-        del mt_targets[user_id]
+    if chat_id in del_targets and user_id in del_targets[chat_id]:
+        del_targets[chat_id].remove(user_id)
+
+    if chat_id in mt_targets and user_id in mt_targets[chat_id]:
+        del mt_targets[chat_id][user_id]
         removed_from_mt = True
         
-        if not mt_targets:
-            mt_running = False
-            if mt_task:
-                mt_task.cancel()
-                mt_task = None
+        if not mt_targets[chat_id]:
+            if chat_id in mt_tasks and mt_tasks[chat_id]:
+                mt_tasks[chat_id].cancel()
+                del mt_tasks[chat_id]
 
     if removed_from_targets or removed_from_mt:
         display_name = target_name if target_name else str(user_id)
@@ -543,33 +625,31 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     is_running = False
-    await update.effective_message.reply_text("Auto-reply actions paused.")
+    await update.effective_message.reply_text("ftmt twy ngo p lrr ha")
 
 async def continuous_mt_loop(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
-    global mt_running, mt_targets, mt_delay
+    global mt_targets, mt_delay, mt_tasks
 
     def get_combined_mentions_and_text():
-        mentions = " ".join([f'<a href="tg://user?id={uid}">{uname}</a>' for uid, uname in mt_targets.items()])
+        group_mt = mt_targets.get(chat_id, {})
+        mentions = " ".join([f'<a href="tg://user?id={uid}">{uname}</a>' for uid, uname in group_mt.items()])
         random_text = get_random_reply()
         return f"{mentions} {random_text}"
 
     try:
         burst_tasks = []
         for _ in range(6):
-            if not mt_running or not mt_targets:
+            if chat_id not in mt_targets or not mt_targets[chat_id]:
                 break
             full_msg = get_combined_mentions_and_text()
             burst_tasks.append(
                 context.bot.send_message(chat_id=chat_id, text=full_msg, parse_mode="HTML")
             )
         
-        if burst_tasks and mt_running:
+        if burst_tasks:
             await asyncio.gather(*burst_tasks, return_exceptions=True)
 
-        while mt_running and mt_targets:
-            if not mt_running or not mt_targets:
-                break
-
+        while chat_id in mt_targets and mt_targets[chat_id]:
             full_msg = get_combined_mentions_and_text()
 
             try:
@@ -579,21 +659,21 @@ async def continuous_mt_loop(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode="HTML"
                 )
             except Exception as e:
-                logging.error(f"MT Loop Error: {e}")
+                logging.error(f"MT Loop Error in chat {chat_id}: {e}")
                 await asyncio.sleep(1)
 
             if mt_delay > 0:
                 await asyncio.sleep(mt_delay)
     except asyncio.CancelledError:
-        # Task ကို cancel လိုက်တဲ့အခါ error မတက်အောင် ဖမ်းပေးခြင်း
         pass
 
 async def mt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global mt_running, mt_targets, mt_task, mt_delay
+    global mt_targets, mt_tasks
 
     if not await admin_only(update):
         return
 
+    chat_id = update.effective_chat.id
     message = update.effective_message
     target_user_id = None
     target_username = None
@@ -614,27 +694,31 @@ async def mt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("Please reply to a user or provide USER_ID for /mt.")
         return
 
-    mt_targets[target_user_id] = target_username
+    if chat_id not in mt_targets:
+        mt_targets[chat_id] = {}
+
+    mt_targets[chat_id][target_user_id] = target_username
     
-    if not mt_running:
-        mt_running = True
-        mt_task = asyncio.create_task(
-            continuous_mt_loop(update.effective_chat.id, context)
+    if chat_id not in mt_tasks or mt_tasks[chat_id] is None or mt_tasks[chat_id].done():
+        mt_tasks[chat_id] = asyncio.create_task(
+            continuous_mt_loop(chat_id, context)
         )
- #   await message.reply_text(f"🚀 MT started for target ID: {target_user_id}")
+#    await message.reply_text(f"🚀 MT started for target ID: {target_user_id} in THIS group!")
 
 async def stopmt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global mt_running, mt_targets, mt_task
+    global mt_targets, mt_tasks
 
     if not await admin_only(update):
         return
 
-    mt_running = False
-    mt_targets.clear()
+    chat_id = update.effective_chat.id
 
-    if mt_task:
-        mt_task.cancel()
-        mt_task = None
+    if chat_id in mt_targets:
+        del mt_targets[chat_id]
+
+    if chat_id in mt_tasks and mt_tasks[chat_id]:
+        mt_tasks[chat_id].cancel()
+        del mt_tasks[chat_id]
 
     await update.effective_message.reply_text("kmkl lyy twy ngo ny p htin loh stop pyy lyk tr 😹")
 
@@ -653,7 +737,7 @@ async def speed_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         new_speed = float(context.args[0])
         mt_delay = max(0.0, new_speed)
-        await update.effective_message.reply_text(f"⚡")
+        await update.effective_message.reply_text("%")
     except ValueError:
         await update.effective_message.reply_text("Please provide a valid number (e.g. /speed 1).")
 
@@ -663,17 +747,30 @@ async def auto_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not update.effective_user or not update.effective_message:
         return
 
+    chat_id = update.effective_chat.id
     user = update.effective_user
     message = update.effective_message
     text = message.text or message.caption or ""
 
-    if user.id in ADMIN_IDS:
-        if is_running and user.id in targets:
+    user_id = user.id
+
+    # ✨ 1. Auto-Delete စစ်ဆေးခြင်း - တကယ်လို့ target ထားတဲ့လူ စာရိုက်လာရင် စာကို တန်းဖျက်ပေးမည်
+    group_del_targets = del_targets.get(chat_id, set())
+    if user_id in group_del_targets:
+        try:
+            await message.delete()
+        except Exception as e:
+            logging.error(f"Failed to delete message: {e}")
+        return
+
+    group_targets = targets.get(chat_id, set())
+
+    if user_id in ADMIN_IDS:
+        if is_running and user_id in group_targets:
             reply_text = get_random_reply()
             await message.reply_text(reply_text)
         return
 
-    user_id = user.id
     current_step = user_flow_state.get(user_id, 0)
 
     if current_step == 5:
@@ -701,7 +798,7 @@ async def auto_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await message.reply_text(f"လာတောင်း ကိုကို့စီကို @{MAIN_ADMIN_USERNAME}", reply_to_message_id=message.message_id)
         return
 
-    if is_running and user_id in targets:
+    if is_running and user_id in group_targets:
         reply_text = get_random_reply()
         await message.reply_text(reply_text)
 
@@ -725,36 +822,39 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
         return
 
+    chat_id = update.effective_chat.id
     ar_state = "Enabled" if is_running else "Paused"
-    mt_state = f"Running ({len(mt_targets)} targets)" if mt_running else "Stopped"
+    
+    group_mt = mt_targets.get(chat_id, {})
+    mt_state = f"Running ({len(group_mt)} targets in this GP)" if group_mt else "Stopped"
+
+    group_targets = targets.get(chat_id, set())
+    group_del = del_targets.get(chat_id, set())
 
     await update.effective_message.reply_text(
-        f"🤖 Bot Status:\n"
-        f"• Auto-Reply: {ar_state} ({len(targets)} targets)\n"
-        f"• Continuous MT: {mt_state} (Combined)\n"
+        f"🤖 Bot Status (This GP):\n"
+        f"• Auto-Reply: {ar_state} ({len(group_targets)} targets)\n"
+        f"• Auto-Delete: {len(group_del)} targets\n"
+        f"• Continuous MT: {mt_state}\n"
         f"• MT Speed Delay: {mt_delay}s"
     )
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logging.error("Bot error: %s", context.error)
 
-# ✨ Shutdown Hook - Bot ရပ်သွားတဲ့အခါ background task တွေကို သေချာ cancel လုပ်ပေးဖို့
 async def post_shutdown(application: Application):
-    global mt_task, mt_running
-    mt_running = False
-    if mt_task:
-        mt_task.cancel()
-        try:
-            await mt_task
-        except asyncio.CancelledError:
-            pass
+    global mt_tasks, mt_targets
+    mt_targets.clear()
+    for chat_id, task in list(mt_tasks.items()):
+        if task:
+            task.cancel()
+    mt_tasks.clear()
     print("Bot has successfully shut down.")
 
 def main():
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN is missing. Set your bot token in the environment.")
 
-    # Application builder မှာ post_shutdown ထည့်ပေးခြင်း
     app = Application.builder().token(BOT_TOKEN).post_shutdown(post_shutdown).build()
 
     # Commands Registration
@@ -762,6 +862,8 @@ def main():
     app.add_handler(CommandHandler("adm", adm_command))
     app.add_handler(CommandHandler("unadm", unadm_command))
     app.add_handler(CommandHandler("target", target_command))
+    app.add_handler(CommandHandler("del", del_command))
+    app.add_handler(CommandHandler("undel", undel_command))
     app.add_handler(CommandHandler("list", list_targets))
     app.add_handler(CommandHandler("remove", remove_target))
     app.add_handler(CommandHandler("stop", stop_command))
