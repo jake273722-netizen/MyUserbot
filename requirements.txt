@@ -1,3 +1,1 @@
-python-telegram-bot
-flask
-tgcrypto
+python-telegram-bot>=20.0
