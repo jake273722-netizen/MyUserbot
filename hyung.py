@@ -4,6 +4,7 @@ import random
 import logging
 import asyncio
 import threading
+import json
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # Dummy Web Server (Render Port Checker အတွက်)
@@ -41,27 +42,41 @@ BOT_TOKEN = "8642880112:AAEeT4Em53yv6qLCgWhkVaufjl5U1xvZQUI".strip()
 MAIN_ADMIN_ID = 8986922249
 MAIN_ADMIN_USERNAME = "hyungV1"  # 👈 မင်းရဲ့ Telegram Username
 
+# 📂 Admin IDs များကို ဖိုင်ထဲတွင် သိမ်းဆည်းရန် (Render Restart ဖြစ်လျှင်လည်း မပျောက်စေရန်)
+ADMIN_FILE = "admins.json"
+
+def load_admins():
+    if os.path.exists(ADMIN_FILE):
+        try:
+            with open(ADMIN_FILE, "r") as f:
+                data = json.load(f)
+                return set(data)
+        except Exception as e:
+            logging.error(f"Error loading admins: {e}")
+    return {MAIN_ADMIN_ID}
+
+def save_admins():
+    try:
+        with open(ADMIN_FILE, "w") as f:
+            json.dump(list(ADMIN_IDS), f)
+    except Exception as e:
+        logging.error(f"Error saving admins: {e}")
+
 # Bot ကို သုံးခွင့်ရှိသူတွေရဲ့ Admin IDs စာရင်း
-ADMIN_IDS = {MAIN_ADMIN_ID}
+ADMIN_IDS = load_admins()
+ADMIN_IDS.add(MAIN_ADMIN_ID) # Main Admin အမြဲပါဝင်စေရန်
 
 # Global State Variables (Group တစ်ခုချင်းစီအလိုက် ခွဲသိမ်းရန် ပြင်ဆင်ထားသည်)
-# targets = { chat_id: set(user_ids) }
 targets = {}             
 is_running = True           
 
-# del_targets = { chat_id: set(user_ids) } (Auto-delete လုပ်မည့် Target စာရင်း)
 del_targets = {}
-
-# mt_targets = { chat_id: { user_id: username } }
 mt_targets = {}             
-# mt_tasks = { chat_id: Task }
 mt_tasks = {}              
 mt_delay = 2.0              
 
-# 🧠 User Interaction Steps မှတ်ရန် (Flow Tracking)
 user_flow_state = {}
 
-# ⚠️ MT / Auto-reply အတွက် သီးသန့်
 Replies = [
     "ဖာသည်မသားလေးရယ် သေချာကိုက်လေ",
     "မင်းအမေသေတဲ့အကြောင်းတွေ ပြောနေတာလား",
@@ -123,7 +138,7 @@ Replies = [
     "မင်းအခုခွေးလိုနွားလိုအဆဲခံနေရတာတောင်အ‌စွဲတောင်ချင်နေသေးတယ",
     "Text နဲ့စာရိုက်နေတာကိုထိလည်းမထိဘူးတဲ့ ဦးနှောက်ကြွက်ကိုက်ထားသလား ဂေါက်သီး ထိချင်ရင်လာခဲ့",
     "မင်းအမေဖင်ညိုညိုကြီးကို ငြင်ငြင်လေးနဲ့ဘုပေးလိုက်ပြီ",
-    "ဟိတ်ကောင်မင်းမေစောက်ဖုတ်ကိုထွန်းရွှေဝါလူးပီးသုတ်လိုးလိုးပေးမယ်ပူစပ်စပ်ဖြစ်နေအောင်",
+    "ဟိတ်ကောင်မင်းအမေစောက်ဖုတ်ကိုထွန်းရွှေဝါလူးပီးသုတ်လိုးလိုးပေးမယ်ပူစပ်စပ်ဖြစ်နေအောင်",
     "ကန်ချက်တွေက အရမ်းပြင်းနေလို့ မခုခံနိုင်ဘူးလား ဖာသည်မသား",
     "မျက်လုံးကိုမှိတ်ထားငါ့ဆီကထွက်လာတဲ့auraတွေကိုမင်းခံနိုင်ရည်မရှိမှာဆိုးလို့",
     "ဖာသည်မရဲ့သားဝူးတူးတူးမလုပ်နဲ့ဖျက်ကန်လိုက်မယ်",
@@ -193,7 +208,7 @@ Replies = [
     "ဟုမ်းမိတ်ဆိုပြီး မင်းအမေကိုအမုန်းကြိတ်ပေးရမှလား",
     "ဟိတ်ကောင်မင်းအမေစောက်ဖုတ်ပူရှိန်းပူရှိန်းနဲ့လိုးကောင်းလိုက်တာကွာ",
     "ဖာသည်မသားမင်းအမေစောက်ပက်တွေလာပြောနေတာလား👉😂",
-    "ငါလိုးဖာသည်မသားမင်းမေဝဲစားစောက်ဖုတ်ကို မန္တလေးတောင်ကနဂါးကြီးနှစ်ကောင်ပတ်ပီးနဂါးပတ်နဲ့လိုးပေးမယ်😁",
+    "ငါလိုးဖာသည်မသားမင်းအမေဝဲစားစောက်ဖုတ်ကို မန္တလေးတောင်ကနဂါးကြီးနှစ်ကောင်ပတ်ပီးနဂါးပတ်နဲ့လိုးပေးမယ်😁",
     "ဟိတ်ကောင်မင်းအမေစောက်ဖုတ်ကိုထွန်းရွှေဝါလူးပီးသုတ်လိုးလိုးပေးမယ်ပူစပ်စပ်ဖြစ်နေအောင်",
     "မင်းအမေဖာသည်မဆို👉😂",
     "ငါလိုးမ အာပေးတူ ဆဲတာပျော့လိုက်တာ ထိထိမိမိဆဲလေ🤞😏",
@@ -285,6 +300,36 @@ Replies = [
     "ဝူးဝူးဝါးဝါးငါလိုးမသား",
     "လှိမ့်ဆဲခံရလို့တင်းနေတာလား",
     "ရုပ်ပြိုင်ချောမလား",
+    "‌ဘာမောတဲ့ဘောမ အဆဲခံရလို့ခံပျင်းနေပြီလား",
+    "မင်းလိုကောင်ကိုဆဲရတာ ဘော့ဖြစ်တဲ့ငါတောင် ရွံတယ်",
+    "ဇွဲသုတက မှာထားတယ် ဖာသည်မသားဆိုဆဲတဲ့ ဆိုလိုတာက မင်းကဖာသည်မသားပဲ",
+    "ငါလိုးမသား လူကအဖြစ်မရှိဘူးခွေးလုံးလုံးဖြစ်မယ့်ကောင်",
+    "ခွေးမသားလို့မပြောရဘူးခွေးစကားကတော့တတ်တယ်",
+    "မင်းအမေဖာသည်မနို့ကြီးကိုလီးကြီးနဲ့တေ့ပေးရမလား",
+    "ဟျောင့်ခွေးမင်းကိုက်နေတာငါ့လီးကြီး",
+    "ဟျောင့်မျောက်ကြီးကြောက်ပြီလို့ပြောဟ",
+    "လန့်လာပြီမင်းမေစောက်ပက်ပါပြေးလိုးချင်လာပြီ",
+    "မျောက်လိုမင်းအမေကိုသစ်ပင်ပေါ်မှာတက်လ်ိုးမယ်",
+    "ကို့ဘွားအေကိုလိုးလေးနော်မင်းအမေစောက်ပက်ကြီးကိုမုန့်မှတ်ပြီးစားပစ်မယ်",
+    "ဟျောင့်စောက်ပေါလို့တော့မပြောရဘူးပေါချက်ကလက်လန်တယ်",
+    "ဟျောင့်စောက်ပေါမင်းကိုခိုင်းစားနေတာ",
+    "ရိပ်မိလားတော့မသိဘူးမင်းကိုခိုင်းစားနေတာဟ",
+    "မအေလိုးမင်းအမေစောက်ပက်ကိုငါးမျှားချိတ်နဲ့ချိတ်ပစ်မယ်",
+    "ဟျောင့်လာအုံးခွေးစကားလာပြော",
+    "ပုပ်ပွနေတဲ့မင်းအမေဖာသည်မစောက်ဖုတ်ကြီးကိုမလိုးဘူး",
+    "ဟျောင့် ဖာသည်မသားကြီးဆို မင်းက",
+    "အလန့်တကြားကိုမေကိုထလိုးတဲ့ကောင်ကြီးလားမင်းက",
+    "ငါ့အတွက်မင်းကိုပြစရာလီးတစ်ချောင်းပဲရှိတယ်",
+    "မင်းကိုကိုမေကိုလိုးလို့စွတ်ဆွဲနေရင်မင်းစိတ်ဆိုးမှာလား",
+    "မအေလိုးအခြောက် speed တင်ပြီးကိုက်ဖို့ပြင်",
+    "မညောင်းရင်တစ်ညလုံးရေးမလားမပျောက်ကြေး",
+    "ကိုမေကိုလိုးမင်းအမေစောက်ပက်ဂွနဲ့ရိုက်ပစ်",
+    "လမ်းဘေးကကလေးတောင်မင်းထက်ဆဲတတ်တယ်😅👈",
+    "ငါလျှာမထုတ်ဘူးလီးထုတ်ထားတယ်မင်းအမေကိုလိုးတော့မယ်",
+    "မင်းဖေရောအမေရောကခွေးလားမင်းမေဖာသည်မကို လူရုပ်မပေါ်အောင် သမ မယ်",
+    "ငါလိုးမစောက်ဖာသယ်မသား မင်းအမေစောက်ပတ် နဲ့ ငါလီးနဲ့က 2မီတာပဲ ကွာတော့တယ်နော်",
+    "ငါလိုးမဖာသယ်မသားသေမယ် စောက်ဘောမ",
+    "စောက်ကြောလာတင်းနေတယ်ငါလိုးမဖာသည်မ",
     "ဖာသည်မသားရုပ်ဆိုးအကျည်းတန်လိုက်တာ🤮",
     "ဟျောင့်ဝက် မင်းအနူတောထဲကနေလမ်းပျောက်နေတုန်းဘဲမလား အဲ့တော့မကြိုးစားနဲ့အကုန်သဲထဲရေသုန်ဘဲ😂👌",
     "ဖာသည်မသားဆိုပီပီဟန်ချီချီကိုက်ပလိုက်ကွာမာန်ဖီပီးတော့",
@@ -319,7 +364,7 @@ Replies = [
     "ဖာသည်မသားကရုပ်ဆိုးသလောက်အတော်အကိုက်ကြမ်းတဲ့ကောင်",
     "မခင်ဘူးကွာကပ်ဖားယက်ဖားဆိုစောက်ဖာသည်မသား",
     "ငါဒီမှာဟဖာသည်မသားလာကိုက်",
-    "ဘာငေးနေတာမကိုက်ရဲဘူးလားကွီးကို",
+    "ဘာငေးနေတာမkoက်ရဲဘူးလားကွီးကို",
     "မင်းကိုက် တာကိုကြည့်ချင်တယ် ဟိတ်ကောင် ငါလိုးမသား ငါ့ကိုကိုက်ပြကွာ",
     "ကမ္ဘာမှာဆွဲငင်အားရှိတယ်မင်းအမေမှာလည်းရှိတယ်လီးတစ်ချောင်းလောက်တွေ့တာနဲ့နီးတဲ့အပေါက်ထဲဇွတ်ဆွဲတာ",
     "မင်းနဲ့ပြောရတာက အောက်ခြေတောသားနဲ့ပြောနေရသလိုပဲ အိပ့အိပ့နဲ့",
@@ -328,12 +373,12 @@ Replies = [
     "မင်းငါ့ဆီကဘာလိုချင်နေတာလည်းငါလိုးမတောခွေးသေချာကိုက်လေ",
     "မင်းရဲ့စောက်သုံးမကျတဲ့ဘဝကိုနာကျည်းနေတာလား",
     "ဖာသည်မသား ဘယ်ကပေါက်ဖွားလာတာလည်း",
-    "ငါလိုးမဖာသည်မသားမင်းမေစောက်ပက်ကိုသံပဒက်နဲ့ပိတ်တိုက်ပေးလိုက်ရမလား",
+    "ငါလိုးမဖာသည်မသားမင်းအမေစောက်ပက်ကိုသံပဒက်နဲ့ပိတ်တိုက်ပေးလိုက်ရမလား",
     "မင်းအမေစောက်ပက်တည့်တည့်သေးပန်းပစ်မယ်",
     "ဖာသည်မသားမင်းထူးလေ",
     "ဟျောင့်ကိုက်လေနှမလိုးစောက်တောသားလာထား",
     "စောက်ရူးနားကန်း မင်းအမေကို ငါ့လိုးဟေး",
-    "မင်းမေစောက်ပတ်တွေးတောတာလားကွာငါလိုးမဖာသည်မသား",
+    "မင်းမေစောက်ပက်တွေးတောတာလားကွာငါလိုးမဖာသည်မသား",
     "မင်းအဖေစောက်တောသားကိုမေးကြည့်ဇွဲသုတဘာကောင်လဲဆိုတာ",
     "ငါလိုးမစောက်ရုပ်ဆိုးလူကြည့်တော့လီးရုပ်နဲ့ပြေးကန်လိုက်မယ်",
     "ဝက်သားကျွေးပေးလိုက်မယ်မအေလိုးကုလား",
@@ -387,7 +432,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🤖 Bot is online!\n\n"
         "--- Admin Commands ---\n"
         "/adm (reply) - Grant bot access to a user (Main Admin only)\n"
-        "/unadm (reply/ID) - Remove bot access from a user (Main Admin only)\n\n"
+        "/unadm (reply/ID) - Remove bot access from a user (Main Admin only)\n"
+        "/admlist - Show all current admins list (Main Admin only)\n\n"
         "--- Auto Reply Commands ---\n"
         "/target USER_ID - Add user for auto-reply in THIS group\n"
         "/remove USER_ID - Remove user from auto-reply & MT list in THIS group\n"
@@ -423,6 +469,8 @@ async def adm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     ADMIN_IDS.add(target_user.id)
+    save_admins()
+    
     if target_user.id in user_flow_state:
         del user_flow_state[target_user.id]
 
@@ -457,9 +505,39 @@ async def unadm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if target_user_id in ADMIN_IDS:
         ADMIN_IDS.remove(target_user_id)
+        save_admins()
         await message.reply_text(f"❌ Successfully removed bot access from ID: {target_user_id}")
     else:
         await message.reply_text("This user is not an admin.")
+
+# ✨ Main Admin တစ်ယောက်တည်းသာ /admlist စစ်လို့ရအောင် ပြင်ဆင်ထားခြင်း
+async def admlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    message = update.effective_message
+
+    if user is None or user.id != MAIN_ADMIN_ID:
+        await message.reply_text("min ka ztt ma hoke buu kmkl yay")
+        return
+
+    result = "🛡️ **Bot Admin List**:\n\n"
+    result += f"👑 **Main Admin ID:** `{MAIN_ADMIN_ID}` (@{MAIN_ADMIN_USERNAME})\n\n"
+    result += "📋 **Other Authorized Admins:**\n"
+
+    other_admins = [uid for uid in ADMIN_IDS if uid != MAIN_ADMIN_ID]
+    
+    if other_admins:
+        for idx, admin_id in enumerate(other_admins, 1):
+            try:
+                chat_member = await context.bot.get_chat(admin_id)
+                name = chat_member.full_name or "Unknown"
+                username = f" (@{chat_member.username})" if chat_member.username else ""
+                result += f"{idx}. {name}{username} — `{admin_id}`\n"
+            except Exception:
+                result += f"{idx}. Unknown User — `{admin_id}`\n"
+    else:
+        result += "No additional admins added yet.\n"
+
+    await message.reply_text(result, parse_mode="Markdown")
 
 async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
@@ -478,7 +556,6 @@ async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         targets[chat_id].add(user.id)
- #       await message.reply_text(f"✅ Added user ID {user.id} to auto-reply targets for THIS group.")
         return
 
     if not context.args:
@@ -492,9 +569,7 @@ async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     targets[chat_id].add(user_id)
-   # await message.reply_text(f"✅ Added user ID {user_id} to auto-reply targets for THIS group.")
 
-# ✨ Auto-Delete Command (/del)
 async def del_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
         return
@@ -522,7 +597,6 @@ async def del_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     del_targets[chat_id].add(user_id)
     await message.reply_text(f"🗑️")
 
-# ✨ Remove Auto-Delete Command (/undel)
 async def undel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
         return
@@ -720,7 +794,6 @@ async def mt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mt_tasks[chat_id] = asyncio.create_task(
             continuous_mt_loop(chat_id, context)
         )
-#    await message.reply_text(f"🚀 MT started for target ID: {target_user_id} in THIS group!")
 
 async def stopmt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global mt_targets, mt_tasks
@@ -771,7 +844,6 @@ async def auto_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     user_id = user.id
 
-    # ✨ 1. Auto-Delete စစ်ဆေးခြင်း - တကယ်လို့ target ထားတဲ့လူ စာရိုက်လာရင် စာကို တန်းဖျက်ပေးမည်
     group_del_targets = del_targets.get(chat_id, set())
     if user_id in group_del_targets:
         try:
@@ -878,6 +950,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("adm", adm_command))
     app.add_handler(CommandHandler("unadm", unadm_command))
+    app.add_handler(CommandHandler("admlist", admlist_command))
     app.add_handler(CommandHandler("target", target_command))
     app.add_handler(CommandHandler("del", del_command))
     app.add_handler(CommandHandler("undel", undel_command))
