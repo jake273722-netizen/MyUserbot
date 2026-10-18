@@ -36,7 +36,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-BOT_TOKEN = "8642880112:AAEbnxIKjLmPmHTFUC5mGlihSiAKLFey1zA".strip()
+BOT_TOKEN = "8901194137:AAH03WfxzYoaoKY9O2HP3-5tprJVfyy0sGA".strip()
 
 # ✨ Main Admin ID 
 MAIN_ADMIN_ID = 8986922249
