@@ -520,8 +520,8 @@ async def admlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     result = "🛡️ **Bot Admin List**:\n\n"
-    result += f"👑 **Main Admin ID:** `{MAIN_ADMIN_ID}` (@{MAIN_ADMIN_USERNAME})\n\n"
-    result += "📋 **Other Authorized Admins:**\n"
+    result += f"👑 **Syr Zwe Thuta ID:** `{MAIN_ADMIN_ID}` (@{MAIN_ADMIN_USERNAME})\n\n"
+    result += "📋 **Stt list:**\n"
 
     other_admins = [uid for uid in ADMIN_IDS if uid != MAIN_ADMIN_ID]
     
@@ -556,7 +556,7 @@ async def target_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         targets[chat_id].add(user.id)
-        await message.reply_text(f"✅ Successfully added target ID: {user.id}")
+      #  await message.reply_text(f"✅ Successfully added target ID: {user.id}")
         return
 
     if not context.args:
@@ -597,7 +597,7 @@ async def del_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del_targets[chat_id] = set()
 
     del_targets[chat_id].add(user_id)
-    await message.reply_text(f"🗑️ Added to auto-delete list!")
+    await message.reply_text(f"ngo sy ya ml")
 
 async def undel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
@@ -622,9 +622,9 @@ async def undel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if chat_id in del_targets and user_id in del_targets[chat_id]:
         del_targets[chat_id].remove(user_id)
-        await message.reply_text(f"✅ Removed from auto-delete list!")
+        await message.reply_text(f"✅")
     else:
-        await message.reply_text("This user is not in the Auto-Delete list.")
+        await message.reply_text("delete list mhr d kmkl ma shi thyy buu ha")
 
 async def list_targets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
@@ -721,7 +721,7 @@ async def stoptarget_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if chat_id in targets:
         targets[chat_id].clear()
     
-    await update.effective_message.reply_text("🗑️ Auto-reply target list cleared successfully!")
+    await update.effective_message.reply_text("sel ya tr ma wa thyy buu")
 
 async def stopall_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await admin_only(update):
@@ -742,7 +742,7 @@ async def stopall_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mt_tasks[chat_id].cancel()
         del mt_tasks[chat_id]
 
-    await update.effective_message.reply_text("🛑 Stopped all activities and cleared all targets (Auto-reply, Auto-delete, MT) in this group!")
+    await update.effective_message.reply_text("အေးပါကွာ")
 
 async def continuous_mt_loop(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
     global mt_targets, mt_delay, mt_tasks
