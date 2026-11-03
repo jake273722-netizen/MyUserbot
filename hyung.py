@@ -425,7 +425,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update):
         if user:
             user_flow_state[user.id] = 1
-        await message.reply_text(" https://t.me/+odchGTDKNgVjYWE1 Gpထဲ @qihwabot လို့ Mt  ပြီး ကိုကို လို့ခေါ်ရင် ပါမစ်ရနည်းပြောပြမယ်")
+        await message.reply_text(" Bot permission ရယူရန် https://t.me/+71bKcZ8ylVw4Zjk1 Gp join ပြီးရင် @hyungv1 mt လိုက်ပါ")
         return
 
     await update.effective_message.reply_text(
